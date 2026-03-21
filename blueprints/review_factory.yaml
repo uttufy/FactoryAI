@@ -1,0 +1,120 @@
+factory:
+  name: "Review Factory"
+  description: "Multi-perspective code review with correctness, style, and security analysis"
+
+  assembly_lines:
+    - name: "correctness"
+      stations:
+        - name: "logic-check"
+          role: "Logic Reviewer"
+          prompt: |
+            Review the logical correctness of:
+
+            Task: {task}
+
+            Check for:
+            1. Logical errors
+            2. Off-by-one errors
+            3. Null/nil handling
+            4. Boundary conditions
+
+        - name: "edge-cases"
+          role: "Edge Case Analyst"
+          prompt: |
+            Analyze edge cases for:
+
+            Previous Analysis:
+            {context}
+
+            Original Task: {task}
+
+            Identify:
+            1. Unusual inputs
+            2. Boundary conditions
+            3. Error scenarios
+            4. Race conditions (if applicable)
+
+    - name: "style"
+      stations:
+        - name: "readability"
+          role: "Readability Reviewer"
+          prompt: |
+            Review the readability of:
+
+            Task: {task}
+
+            Evaluate:
+            1. Code clarity
+            2. Naming conventions
+            3. Comments and documentation
+            4. Code organization
+
+        - name: "maintainability"
+          role: "Maintainability Expert"
+          prompt: |
+            Assess maintainability based on:
+
+            Readability Review:
+            {context}
+
+            Original Task: {task}
+
+            Consider:
+            1. Modularity
+            2. DRY principle
+            3. Future extensibility
+            4. Technical debt
+
+    - name: "security"
+      stations:
+        - name: "vuln-scan"
+          role: "Vulnerability Scanner"
+          prompt: |
+            Scan for security vulnerabilities in:
+
+            Task: {task}
+
+            Check for:
+            1. Injection vulnerabilities
+            2. Authentication issues
+            3. Authorization flaws
+            4. Data exposure risks
+
+        - name: "threat-model"
+          role: "Threat Modeler"
+          prompt: |
+            Create a threat model based on:
+
+            Vulnerability Scan:
+            {context}
+
+            Original Task: {task}
+
+            Identify:
+            1. Attack vectors
+            2. Trust boundaries
+            3. Risk assessment
+            4. Mitigation strategies
+
+  merger:
+    type: "claude"
+    prompt: |
+      Create a comprehensive code review report from these analyses:
+
+      Correctness Analysis:
+      {line_0_output}
+
+      Style Analysis:
+      {line_1_output}
+
+      Security Analysis:
+      {line_2_output}
+
+      Original Task: {task}
+
+      Provide:
+      1. Executive Summary
+      2. Critical Issues (must fix)
+      3. Important Issues (should fix)
+      4. Suggestions (nice to have)
+      5. Overall Assessment
