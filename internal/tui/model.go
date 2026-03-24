@@ -5,10 +5,26 @@ import (
 
 	"github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/spinner"
 
 	"github.com/uttufy/FactoryAI/internal/config"
 	"github.com/uttufy/FactoryAI/internal/events"
 )
+
+type tickMsg struct{}
+
+func waitForEvent(events <-chan events.Event) tea.Cmd {
+	return func() tea.Msg {
+		if events == nil {
+			return nil
+		}
+		return <-events
+	}
+}
+
+func tick() tea.Msg {
+	return tickMsg{}
+}
 
 type StationStatus int
 
@@ -45,22 +61,23 @@ type Model struct {
 
 	events <-chan events.Event
 
-	styles Styles
+	styles  Styles
+	spinner spinner.Model
 }
 
 type Styles struct {
-	title     lipgloss.Style
-	lineBox   lipgloss.Style
-	station   lipgloss.Style
-	duration  lipgloss.Style
-	output    lipgloss.Style
-	help      lipgloss.Style
-	status    map[StationStatus]lipgloss.Style
+	title    lipgloss.Style
+	lineBox  lipgloss.Style
+	station  lipgloss.Style
+	duration lipgloss.Style
+	output   lipgloss.Style
+	help     lipgloss.Style
+	status   map[StationStatus]lipgloss.Style
 }
 
 var statusIcons = map[StationStatus]string{
 	StatusPending:    "○",
-	StatusRunning:    "⠿",
+	StatusRunning:    "◐",
 	StatusInspecting: "🔍",
 	StatusDone:       "✓",
 	StatusFailed:     "✗",
@@ -83,11 +100,16 @@ func NewModel(blueprint *config.Blueprint, eventsChan <-chan events.Event) Model
 		}
 	}
 
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+
 	return Model{
 		factoryName: blueprint.Factory.Name,
 		lines:       lines,
 		events:      eventsChan,
 		styles:      defaultStyles(),
+		spinner:     s,
 	}
 }
 
@@ -122,14 +144,8 @@ func defaultStyles() Styles {
 }
 
 func (m Model) Init() tea.Cmd {
-	return waitForEvent(m.events)
-}
-
-func waitForEvent(events <-chan events.Event) tea.Cmd {
-	return func() tea.Msg {
-		if events == nil {
-			return nil
-		}
-		return <-events
-	}
+	return tea.Batch(
+		waitForEvent(m.events),
+		spinner.Tick,
+	)
 }

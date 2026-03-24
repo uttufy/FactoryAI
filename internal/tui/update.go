@@ -2,6 +2,7 @@ package tui
 
 import (
 	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/spinner"
 
 	"github.com/uttufy/FactoryAI/internal/events"
 )
@@ -12,6 +13,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.String() == "q" || msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 
 	case events.Event:
 		m = m.handleEvent(msg)

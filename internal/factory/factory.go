@@ -58,20 +58,20 @@ func (f *Factory) Run(ctx context.Context, task string, eventsChan chan<- events
 	for i, line := range f.lines {
 		i, line := i, line
 		g.Go(func() error {
-			result, err := line.Run(ctx, task, eventsChan)
+			result, _ := line.Run(ctx, task, eventsChan)
 			results[i] = result
-			return err
+			return nil
 		})
 	}
 
-	if err := g.Wait(); err != nil {
-		eventsChan <- events.Done("")
-		return &job.JobResult{
-			JobID:         j.ID,
-			LineResults:   results,
-			TotalDuration: time.Since(start),
-			Error:         err,
-		}, err
+	_ = g.Wait()
+
+	// Check if any line failed
+	var lineErrors []error
+	for _, r := range results {
+		if r.Error != nil {
+			lineErrors = append(lineErrors, r.Error)
+		}
 	}
 
 	eventsChan <- events.Merging()
@@ -89,12 +89,23 @@ func (f *Factory) Run(ctx context.Context, task string, eventsChan chan<- events
 
 	eventsChan <- events.Done(merged)
 
+	// Return partial success if some lines failed but we still got output
+	var combinedErr error
+	if len(lineErrors) > 0 {
+		for _, e := range lineErrors {
+			if combinedErr == nil {
+				combinedErr = e
+			}
+		}
+	}
+
 	return &job.JobResult{
 		JobID:         j.ID,
 		LineResults:   results,
 		FinalOutput:   merged,
 		TotalDuration: time.Since(start),
-	}, nil
+		Error:         combinedErr,
+	}, combinedErr
 }
 
 func (f *Factory) Blueprint() *config.Blueprint {

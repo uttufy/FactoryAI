@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -38,17 +39,45 @@ func (a *ClaudeAgent) Run(ctx context.Context, req Request) (Response, error) {
 
 	cmd := exec.CommandContext(ctx, a.binaryPath, "-p", prompt)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// Create pipes for stdout/stderr to stream in real-time while capturing
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return Response{}, fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return Response{}, fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
 
-	err := cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return Response{}, fmt.Errorf("failed to start claude command: %w", err)
+	}
+
+	// Stream output in real-time while capturing
+	var stdoutBuf, stderrBuf bytes.Buffer
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		// Stream stdout
+		go func() {
+			multiWriter := io.MultiWriter(&stdoutBuf, os.Stdout)
+			io.Copy(multiWriter, stdoutPipe)
+		}()
+		// Stream stderr
+		multiWriter := io.MultiWriter(&stderrBuf, os.Stderr)
+		io.Copy(multiWriter, stderrPipe)
+	}()
+
+	// Wait for command to complete
+	err = cmd.Wait()
+	<-done
 
 	duration := time.Since(start)
 
-	output := stdout.String()
-	if stderr.Len() > 0 && output == "" {
-		output = stderr.String()
+	output := stdoutBuf.String()
+	if stderrBuf.Len() > 0 && output == "" {
+		output = stderrBuf.String()
 	}
 
 	if err != nil {

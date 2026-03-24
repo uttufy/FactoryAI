@@ -34,7 +34,7 @@ factory:
             2. Synthesizes different perspectives
             3. Draws conclusions
           inspector:
-            enabled: true
+            enabled: false
             max_retries: 2
             criteria: "The synthesis must be well-structured, cite sources, and directly address the original task"
 

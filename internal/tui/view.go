@@ -59,7 +59,13 @@ func (m Model) renderLine(line LineView) string {
 	b.WriteString("\n")
 
 	for _, station := range line.Stations {
-		icon := statusIcons[station.Status]
+		var icon string
+		switch station.Status {
+		case StatusRunning:
+			icon = m.spinner.View()
+		default:
+			icon = statusIcons[station.Status]
+		}
 		style := m.styles.status[station.Status]
 
 		duration := ""
