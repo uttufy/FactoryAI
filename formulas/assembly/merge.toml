@@ -1,0 +1,33 @@
+name = "Merge Formula"
+description = "Merges validated code to main branch"
+
+[variables]
+target_branch = "main"
+
+[[steps]]
+name = "pre-merge"
+description = "Final pre-merge validation"
+assignee = "gatekeeper"
+dependencies = []
+acceptance = "All CI checks must pass, approval received"
+
+[[steps]]
+name = "merge"
+description = "Perform the merge"
+assignee = "integrator"
+dependencies = ["pre-merge"]
+acceptance = "Clean merge with no conflicts"
+
+[[steps]]
+name = "push"
+description = "Push merged code to remote"
+assignee = "integrator"
+dependencies = ["merge"]
+acceptance = "Code successfully pushed to remote repository"
+
+[[steps]]
+name = "cleanup"
+description = "Clean up feature branches"
+assignee = "integrator"
+dependencies = ["push"]
+acceptance = "Local feature branches deleted, remote branches deleted"

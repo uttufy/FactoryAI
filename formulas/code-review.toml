@@ -1,0 +1,33 @@
+name = "Code Review Formula"
+description = "Comprehensive code review with multiple perspectives"
+
+[variables]
+review_depth = "thorough"
+
+[[steps]]
+name = "correctness-review"
+description = "Review for correctness and bugs"
+assignee = "correctness-reviewer"
+dependencies = []
+acceptance = "Must identify all logic errors, edge cases, and potential bugs"
+
+[[steps]]
+name = "style-review"
+description = "Review for code style and conventions"
+assignee = "style-reviewer"
+dependencies = []
+acceptance = "Code must follow project style guide and naming conventions"
+
+[[steps]]
+name = "security-review"
+description = "Security and vulnerability review"
+assignee = "security-reviewer"
+dependencies = []
+acceptance = "Must identify all security vulnerabilities, injection points, and data leaks"
+
+[[steps]]
+name = "synthesize"
+description = "Synthesize all reviews into actionable feedback"
+assignee = "synthesizer"
+dependencies = ["correctness-review", "style-review", "security-review"]
+acceptance = "Must provide prioritized list of issues with severity ratings"

@@ -1,0 +1,33 @@
+# Plant Director Role Configuration
+role: director
+name: "Plant Director"
+description: "Top-level factory orchestrator with single authority"
+
+# Permissions
+permissions:
+  - receive_tasks
+  - create_batches
+  - pause_factory
+  - resume_factory
+  - escalate_issues
+  - provision_stations
+  - decommission_stations
+  - view_status
+
+# Limitations (what this role CANNOT do)
+limitations:
+  - cannot_dispatch_work  # Only Planner can dispatch
+  - cannot_override_planner
+  - cannot_execute_work   # Cannot work at stations directly
+
+# Settings
+settings:
+  max_concurrent_batches: 5
+  batch_timeout: 7200  # 2 hours
+  auto_escalate_timeout: 1800  # 30 minutes
+
+# Notifications
+notifications:
+  on_batch_complete: true
+  on_batch_failed: true
+  on_station_stuck: true

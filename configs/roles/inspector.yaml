@@ -1,0 +1,36 @@
+# Inspector Role Configuration
+role: inspector
+name: "Quality Inspector"
+description: "Verifies work quality and helps stuck operators"
+
+# Permissions
+permissions:
+  - inspect_work
+  - verify_acceptance
+  - fail_quality
+  - trigger_rework
+  - help_stuck_operators
+
+# Limitations
+limitations:
+  - cannot_dispatch_work
+  - cannot_modify_job_status
+  - cannot_override_planner
+
+# Settings
+settings:
+  max_inspection_time: 600  # 10 minutes
+  default_max_retries: 2
+  strict_mode: false
+
+# Acceptance criteria templates
+acceptance_templates:
+  code: "Code must compile, pass tests, follow conventions, and be well-documented"
+  documentation: "Documentation must be clear, complete, and accurate"
+  review: "Review must identify all issues and provide actionable feedback"
+
+# Quality thresholds
+quality_thresholds:
+  min_completeness: 0.95
+  min_accuracy: 0.90
+  max_defects: 0

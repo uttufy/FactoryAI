@@ -1,0 +1,33 @@
+name = "Pre-Merge Check Formula"
+description = "Validates code is ready for merge"
+
+[variables]
+target_branch = "main"
+
+[[steps]]
+name = "compile-check"
+description = "Verify code compiles without errors"
+assignee = "builder"
+dependencies = []
+acceptance = "All code must compile with zero errors"
+
+[[steps]]
+name = "test-check"
+description = "Run all tests"
+assignee = "tester"
+dependencies = ["compile-check"]
+acceptance = "All unit tests must pass"
+
+[[steps]]
+name = "lint-check"
+description = "Run linting and static analysis"
+assignee = "linter"
+dependencies = ["compile-check"]
+acceptance = "Zero linting errors or warnings"
+
+[[steps]]
+name = "conflict-check"
+description = "Check for merge conflicts"
+assignee = "integrator"
+dependencies = ["test-check", "lint-check"]
+acceptance = "No merge conflicts with target branch"

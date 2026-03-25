@@ -8,18 +8,17 @@ import (
 	"github.com/uttufy/FactoryAI/internal/config"
 	"github.com/uttufy/FactoryAI/internal/events"
 	"github.com/uttufy/FactoryAI/internal/job"
-	"github.com/uttufy/FactoryAI/internal/station"
 )
 
 type AssemblyLine struct {
-	config config.AssemblyLineConfig
-	stations []*station.Station
+	config   config.AssemblyLineConfig
+	stations []*StationV0
 }
 
 func New(cfg config.AssemblyLineConfig, agent agents.Agent) *AssemblyLine {
-	stations := make([]*station.Station, len(cfg.Stations))
+	stations := make([]*StationV0, len(cfg.Stations))
 	for i, stationCfg := range cfg.Stations {
-		stations[i] = station.New(stationCfg, agent, cfg.Name)
+		stations[i] = NewV0Station(stationCfg, agent, cfg.Name)
 	}
 
 	return &AssemblyLine{

@@ -1,4 +1,5 @@
-package station
+// Package assemblyline provides v0.x station implementation for backward compatibility.
+package assemblyline
 
 import (
 	"context"
@@ -12,14 +13,16 @@ import (
 	"github.com/uttufy/FactoryAI/internal/worker"
 )
 
-type Station struct {
+// StationV0 represents a v0.x station (for backward compatibility)
+type StationV0 struct {
 	config    config.StationConfig
 	worker    *worker.Worker
 	inspector *inspector.Inspector
 	lineName  string
 }
 
-func New(cfg config.StationConfig, agent agents.Agent, lineName string) *Station {
+// NewV0Station creates a new v0.x station
+func NewV0Station(cfg config.StationConfig, agent agents.Agent, lineName string) *StationV0 {
 	w := worker.New(cfg, agent)
 
 	var insp *inspector.Inspector
@@ -27,7 +30,7 @@ func New(cfg config.StationConfig, agent agents.Agent, lineName string) *Station
 		insp = inspector.New(agent, *cfg.Inspector)
 	}
 
-	return &Station{
+	return &StationV0{
 		config:    cfg,
 		worker:    w,
 		inspector: insp,
@@ -35,11 +38,11 @@ func New(cfg config.StationConfig, agent agents.Agent, lineName string) *Station
 	}
 }
 
-func (s *Station) Name() string {
+func (s *StationV0) Name() string {
 	return s.config.Name
 }
 
-func (s *Station) Run(ctx context.Context, task, context string, eventsChan chan<- events.Event) (job.StationResult, error) {
+func (s *StationV0) Run(ctx context.Context, task, context string, eventsChan chan<- events.Event) (job.StationResult, error) {
 	maxAttempts := 1
 	if s.inspector != nil && s.config.Inspector != nil {
 		maxAttempts = s.config.Inspector.MaxRetries + 1
