@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/uttufy/FactoryAI/internal/events"
-	"github.com/uttufy/FactoryAI/internal/inspector"
 	"github.com/uttufy/FactoryAI/internal/operator"
 	"github.com/uttufy/FactoryAI/internal/station"
 	"github.com/uttufy/FactoryAI/internal/store"
@@ -27,24 +26,21 @@ type FloorStatus struct {
 
 // Supervisor oversees the factory floor
 type Supervisor struct {
-	events      *events.EventBus
-	store       *store.Store
-	inspector   *inspector.Inspector
-	tmux        *tmux.Manager
+	events *events.EventBus
+	store  *store.Store
+	tmux   *tmux.Manager
 }
 
 // NewSupervisor creates a new floor supervisor
 func NewSupervisor(
 	events *events.EventBus,
 	store *store.Store,
-	inspector *inspector.Inspector,
 	tmux *tmux.Manager,
 ) *Supervisor {
 	s := &Supervisor{
-		events:    events,
-		store:     store,
-		inspector: inspector,
-		tmux:      tmux,
+		events: events,
+		store:  store,
+		tmux:   tmux,
 	}
 
 	// Subscribe to events - commented out for now
