@@ -1827,11 +1827,6 @@ formulas/                    # Workflow recipes
     ├── pre-check.toml
     └── merge.toml
 
-blueprints/                  # Factory blueprints
-├── coding_factory.yaml
-├── research_factory.yaml
-└── review_factory.yaml
-
 configs/                     # Configuration files
 ├── factory.yaml            # Factory configuration
 └── roles/                  # Role configurations
