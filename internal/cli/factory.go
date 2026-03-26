@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -29,7 +31,10 @@ import (
 var (
 	projectPath string
 	cfgFile     string
+	detach      bool
 )
+
+const pidFileName = "factory.pid"
 
 // Factory represents the running factory
 type Factory struct {
@@ -149,6 +154,9 @@ func init() {
 	// Global flags
 	rootCmd.PersistentFlags().StringVarP(&projectPath, "path", "p", ".", "Project path")
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "Config file path")
+
+	// Boot command flags
+	bootCmd.Flags().BoolVarP(&detach, "detach", "d", false, "Run factory in background")
 }
 
 func initFactory() error {
@@ -216,7 +224,9 @@ func runBeadsDoctor(cfg *config.Config, absPath string) error {
 		return fmt.Errorf("creating beads client: %w", err)
 	}
 
-	if err := beadsClient.Doctor(); err != nil {
+	// Run doctor and get the output (output is printed by DoctorWithOutput)
+	_, err = beadsClient.DoctorWithOutput()
+	if err != nil {
 		return err
 	}
 
@@ -262,6 +272,20 @@ func bootFactory() error {
 		return fmt.Errorf("getting absolute path: %w", err)
 	}
 
+	// Check if factory is already running (check PID file)
+	pidFile := getPIDFilePath(absPath)
+	if pidData, err := os.ReadFile(pidFile); err == nil {
+		// PID file exists, check if process is running
+		var pid int
+		if _, err := fmt.Sscanf(string(pidData), "%d", &pid); err == nil {
+			if isProcessRunning(pid) {
+				return fmt.Errorf("factory is already running (PID %d). Run 'factory shutdown' first", pid)
+			}
+		}
+		// Stale PID file, remove it
+		os.Remove(pidFile)
+	}
+
 	// Load config
 	cfg, err := loadConfig(absPath)
 	if err != nil {
@@ -276,6 +300,11 @@ func bootFactory() error {
 		return fmt.Errorf("beads doctor check failed:\n%w\n\nPlease fix beads issues before booting the factory.\nRun 'bd doctor' for details.", err)
 	}
 
+	// Handle detach mode
+	if detach {
+		return bootDetached(cfg, absPath)
+	}
+
 	// Initialize components
 	factory, err := initializeFactory(cfg, absPath)
 	if err != nil {
@@ -283,6 +312,12 @@ func bootFactory() error {
 	}
 
 	factoryInstance = factory
+
+	// Write PID file
+	if err := writePIDFile(pidFile, os.Getpid()); err != nil {
+		fmt.Printf("Warning: could not write PID file: %v\n", err)
+	}
+	defer os.Remove(pidFile)
 
 	// Start the factory
 	ctx, cancel := context.WithCancel(context.Background())
@@ -314,6 +349,77 @@ func bootFactory() error {
 
 	fmt.Println("Factory shutdown complete.")
 	return nil
+}
+
+// bootDetached starts the factory in background
+func bootDetached(cfg *config.Config, absPath string) error {
+	// Get the path to the current executable
+	execPath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("getting executable path: %w", err)
+	}
+
+	// Create log file for background output
+	logFile := filepath.Join(config.GetFactoryDir(absPath), "factory.log")
+	logF, err := os.Create(logFile)
+	if err != nil {
+		return fmt.Errorf("creating log file: %w", err)
+	}
+	defer logF.Close()
+
+	// Prepare command to run in background
+	// We use a special flag to indicate this is the child process
+	args := []string{"boot", "--path", absPath}
+	if cfgFile != "" {
+		args = append(args, "--config", cfgFile)
+	}
+
+	cmd := exec.Command(execPath, args...)
+	cmd.Stdout = logF
+	cmd.Stderr = logF
+	cmd.Stdin = nil
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setsid: true, // Create new session to detach from terminal
+	}
+
+	// Start the process
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("starting background process: %w", err)
+	}
+
+	// Write PID file
+	pidFile := getPIDFilePath(absPath)
+	if err := writePIDFile(pidFile, cmd.Process.Pid); err != nil {
+		fmt.Printf("Warning: could not write PID file: %v\n", err)
+	}
+
+	fmt.Printf("Factory started in background (PID %d)\n", cmd.Process.Pid)
+	fmt.Printf("Log file: %s\n", logFile)
+	fmt.Println("\nTo view status: factory status")
+	fmt.Println("To stop: factory shutdown")
+
+	return nil
+}
+
+// getPIDFilePath returns the path to the PID file
+func getPIDFilePath(absPath string) string {
+	return filepath.Join(config.GetFactoryDir(absPath), pidFileName)
+}
+
+// writePIDFile writes the PID to the PID file
+func writePIDFile(path string, pid int) error {
+	return os.WriteFile(path, []byte(fmt.Sprintf("%d", pid)), 0644)
+}
+
+// isProcessRunning checks if a process with the given PID is running
+func isProcessRunning(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	// On Unix, FindProcess always succeeds, so we need to send signal 0
+	err = process.Signal(syscall.Signal(0))
+	return err == nil
 }
 
 func showStatus() error {
@@ -413,6 +519,55 @@ func showStatus() error {
 }
 
 func shutdownFactory() error {
+	absPath, err := filepath.Abs(projectPath)
+	if err != nil {
+		return fmt.Errorf("getting absolute path: %w", err)
+	}
+
+	// Check for background factory via PID file
+	pidFile := getPIDFilePath(absPath)
+	pidData, err := os.ReadFile(pidFile)
+	if err == nil {
+		// PID file exists, try to kill the background process
+		var pid int
+		if _, err := fmt.Sscanf(string(pidData), "%d", &pid); err == nil {
+			if isProcessRunning(pid) {
+				fmt.Printf("Stopping background factory (PID %d)...\n", pid)
+				process, err := os.FindProcess(pid)
+				if err != nil {
+					return fmt.Errorf("finding process: %w", err)
+				}
+
+				// Send SIGTERM for graceful shutdown
+				if err := process.Signal(syscall.SIGTERM); err != nil {
+					return fmt.Errorf("sending shutdown signal: %w", err)
+				}
+
+				// Wait for process to exit (with timeout)
+				for i := 0; i < 10; i++ {
+					time.Sleep(500 * time.Millisecond)
+					if !isProcessRunning(pid) {
+						break
+					}
+				}
+
+				// Force kill if still running
+				if isProcessRunning(pid) {
+					fmt.Println("Process didn't stop gracefully, forcing...")
+					process.Kill()
+				}
+
+				// Remove PID file
+				os.Remove(pidFile)
+				fmt.Println("Factory shutdown complete.")
+				return nil
+			}
+			// Stale PID file
+			os.Remove(pidFile)
+		}
+	}
+
+	// Check for in-process factory
 	if factoryInstance == nil {
 		fmt.Println("Factory is not running.")
 		return nil

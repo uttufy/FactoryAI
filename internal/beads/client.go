@@ -437,6 +437,13 @@ func (c *Client) Init(prefix string) error {
 // Doctor runs beads doctor to check system health
 // Returns error if doctor finds critical errors
 func (c *Client) Doctor() error {
+	_, err := c.DoctorWithOutput()
+	return err
+}
+
+// DoctorWithOutput runs beads doctor and returns the output
+// Returns error if doctor finds critical errors
+func (c *Client) DoctorWithOutput() (string, error) {
 	args := []string{"doctor"}
 	cmd := exec.Command(c.binaryPath, args...)
 	if c.workingDir != "" {
@@ -449,17 +456,20 @@ func (c *Client) Doctor() error {
 	output, _ := cmd.CombinedOutput()
 	outputStr := string(output)
 
+	// Print the output for visibility
+	fmt.Print(outputStr)
+
 	// Check for critical errors in output - look for error symbol with "Installation" error
 	// which indicates beads is not initialized
 	// Note: bd doctor returns exit code 1 for warnings too, so we check the actual content
 	if strings.Contains(outputStr, "✖") {
 		// Check for critical errors (like no .beads directory)
 		if strings.Contains(outputStr, "No .beads/") || strings.Contains(outputStr, "Installation:") {
-			return fmt.Errorf("beads doctor found errors:\n%s", outputStr)
+			return outputStr, fmt.Errorf("beads doctor found critical errors")
 		}
 	}
 
-	return nil
+	return outputStr, nil
 }
 
 // InstallHooks installs recommended git hooks
