@@ -8,10 +8,12 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
+	"github.com/uttufy/FactoryAI/internal/assembly"
 	"github.com/uttufy/FactoryAI/internal/batch"
 	"github.com/uttufy/FactoryAI/internal/beads"
 	"github.com/uttufy/FactoryAI/internal/director"
 	"github.com/uttufy/FactoryAI/internal/events"
+	"github.com/uttufy/FactoryAI/internal/mail"
 	"github.com/uttufy/FactoryAI/internal/operator"
 	"github.com/uttufy/FactoryAI/internal/planner"
 	"github.com/uttufy/FactoryAI/internal/station"
@@ -142,11 +144,15 @@ var bootCmd = &cobra.Command{
 		operatorPool = operator.NewPool(stationManager, eventsInstance, storeInstance, tmuxInstance, beadsClient)
 		dagEngine = workflow.NewDAGEngine(eventsInstance)
 
-		travelerMgr := traveler.NewManager(beadsClient, eventsInstance, storeInstance)
+		travelerMgr = traveler.NewManager(beadsClient, eventsInstance, storeInstance)
 		plannerInstance = planner.NewPlanner(eventsInstance, storeInstance, travelerMgr, stationManager, beadsClient, nil)
 		supportService = support.NewService(eventsInstance, storeInstance, tmuxInstance)
 		supervisorInst = supervisor.NewSupervisor(eventsInstance, storeInstance, tmuxInstance)
 		batchMgr = batch.NewManager(beadsClient, eventsInstance, storeInstance)
+
+		// Initialize assembly (merge queue) and mail system
+		assemblyMgr = assembly.NewAssembly(projectPath, eventsInstance, storeInstance, beadsClient)
+		mailSystem = mail.NewService(beadsClient)
 
 		// Initialize director
 		directorInstance = director.NewDirector(

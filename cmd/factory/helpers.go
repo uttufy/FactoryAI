@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 
+	"github.com/uttufy/FactoryAI/internal/assembly"
 	"github.com/uttufy/FactoryAI/internal/batch"
 	"github.com/uttufy/FactoryAI/internal/beads"
 	"github.com/uttufy/FactoryAI/internal/director"
 	"github.com/uttufy/FactoryAI/internal/events"
+	"github.com/uttufy/FactoryAI/internal/mail"
 	"github.com/uttufy/FactoryAI/internal/operator"
 	"github.com/uttufy/FactoryAI/internal/planner"
 	"github.com/uttufy/FactoryAI/internal/station"
@@ -61,6 +63,8 @@ var (
 	dagEngine        *workflow.DAGEngine
 	workCellManager  *workcell.Manager
 	travelerMgr      *traveler.Manager
+	assemblyMgr      *assembly.Assembly
+	mailSystem       *mail.Service
 )
 
 // Factory configuration

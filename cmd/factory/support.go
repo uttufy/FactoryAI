@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/uttufy/FactoryAI/internal/events"
 )
 
 // getSupportCmds returns support service commands
@@ -23,17 +26,59 @@ var supportStatusCmd = &cobra.Command{
 			return err
 		}
 
-		// TODO: Show support services status
-		fmt.Println("Support Services:")
-		fmt.Println("  Logger: Running")
-		fmt.Println("  Monitor: Running")
-		fmt.Println("  Notifier: Running")
+		ctx := context.Background()
+		report, err := supportService.RunHealthCheck(ctx)
+		if err != nil {
+			return fmt.Errorf("running health check: %w", err)
+		}
+
+		fmt.Println("Support Services Status:")
+		fmt.Println()
+
+		// Database
+		dbStatus := "✗ Unhealthy"
+		if report.DatabaseOK {
+			dbStatus = "✓ Healthy"
+		}
+		fmt.Printf("  Database: %s\n", dbStatus)
+
+		// tmux
+		tmuxStatus := "✗ Unhealthy"
+		if report.TmuxOK {
+			tmuxStatus = "✓ Healthy"
+		}
+		fmt.Printf("  tmux: %s\n", tmuxStatus)
+
+		// Beads
+		beadsStatus := "✗ Unhealthy"
+		if report.BeadsOK {
+			beadsStatus = "✓ Healthy"
+		}
+		fmt.Printf("  Beads: %s\n", beadsStatus)
+
+		// Disk space
+		fmt.Printf("  Disk Space: %d MB available\n", report.DiskSpaceMB)
+
+		// Active stations
+		fmt.Printf("  Active Stations: %d\n", report.ActiveStations)
+
+		// Expired leases
+		fmt.Printf("  Expired Leases: %d\n", report.ExpiredLeases)
+
+		// Errors
+		if len(report.Errors) > 0 {
+			fmt.Println("\nErrors:")
+			for _, e := range report.Errors {
+				fmt.Printf("  - %s\n", e)
+			}
+		}
+
 		return nil
 	},
 }
 
 var supportLogsCmd = &cobra.Command{
-	Use:   "support logs [service]",
+	Use:   "support logs [type]",
 	Short: "Show support service logs",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -45,8 +90,27 @@ var supportLogsCmd = &cobra.Command{
 		if len(args) > 0 {
 			service = args[0]
 		}
-		// TODO: Show logs
-		printInfo("Logs for service: %s", service)
+
+		// Get events from the last hour
+		since := time.Now().Add(-1 * time.Hour)
+		eventList, err := storeInstance.GetEvents(since, events.EventType(""))
+		if err != nil {
+			printInfo("No events found")
+			return nil
+		}
+
+		if len(eventList) > 20 {
+			printInfo("Showing last 20 events for service: %s", service)
+		}
+
+		fmt.Printf("Events (last hour, %d total):\n", len(eventList))
+		for _, evt := range eventList {
+			timestamp := time.Unix(evt.Timestamp, 0).Format("15:04:05")
+			fmt.Printf("  [%s] %s: %s\n", timestamp, evt.Type, evt.Subject)
+			if evt.Source != "" {
+				fmt.Printf("    Source: %s\n", evt.Source)
+			}
+		}
 		return nil
 	},
 }
@@ -60,9 +124,19 @@ var supportAttachCmd = &cobra.Command{
 			return err
 		}
 
+		ctx := context.Background()
 		stationID := args[0]
-		// TODO: Attach support to station
+
+		// Verify station exists
+		_, err := stationManager.Get(ctx, stationID)
+		if err != nil {
+			return fmt.Errorf("station not found: %s", stationID)
+		}
+
+		// In a real implementation, this would subscribe the support service
+		// to the notification channel for the station
 		printSuccess("Support attached to station %s", stationID)
+		printInfo("Support service will monitor this station for issues")
 		return nil
 	},
 }

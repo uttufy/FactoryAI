@@ -1,6 +1,10 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	"github.com/spf13/cobra"
 )
 
@@ -22,8 +26,33 @@ var mergeStatusCmd = &cobra.Command{
 			return err
 		}
 
-		// TODO: Show merge queue status
-		printInfo("Merge queue is empty")
+		if assemblyMgr == nil {
+			return fmt.Errorf("assembly manager not initialized")
+		}
+
+		ctx := context.Background()
+		queue := assemblyMgr.GetQueue(ctx)
+
+		pending := assemblyMgr.GetPendingCount()
+		conflicted := assemblyMgr.GetConflictedCount()
+
+		fmt.Println("Merge Queue Status:")
+		fmt.Printf("  Pending: %d\n", pending)
+		fmt.Printf("  Conflicted: %d\n", conflicted)
+		fmt.Printf("  Total in queue: %d\n", len(queue))
+
+		if len(queue) > 0 {
+			fmt.Println("\nQueue:")
+			for _, mr := range queue {
+				fmt.Printf("  %s: %s [%s]\n", mr.ID, mr.BeadID, mr.Status)
+				if mr.Branch != "" {
+					fmt.Printf("    Branch: %s\n", mr.Branch)
+				}
+				if len(mr.Conflicts) > 0 {
+					fmt.Printf("    Conflicts: %v\n", mr.Conflicts)
+				}
+			}
+		}
 		return nil
 	},
 }
@@ -36,30 +65,76 @@ var mergeListCmd = &cobra.Command{
 			return err
 		}
 
-		// TODO: List pending merges
-		printInfo("No pending merges")
+		if assemblyMgr == nil {
+			return fmt.Errorf("assembly manager not initialized")
+		}
+
+		ctx := context.Background()
+		queue := assemblyMgr.GetQueue(ctx)
+
+		if len(queue) == 0 {
+			printInfo("No pending merges")
+			return nil
+		}
+
+		fmt.Println("Pending Merges:")
+		for _, mr := range queue {
+			age := time.Since(mr.SubmittedAt).Round(time.Second)
+			fmt.Printf("  %s\n", mr.ID)
+			fmt.Printf("    Bead: %s\n", mr.BeadID)
+			fmt.Printf("    Station: %s\n", mr.StationID)
+			fmt.Printf("    Branch: %s\n", mr.Branch)
+			fmt.Printf("    Status: %s (submitted %s ago)\n", mr.Status, age)
+			if mr.Error != "" {
+				fmt.Printf("    Error: %s\n", mr.Error)
+			}
+		}
 		return nil
 	},
 }
 
 var mergeApproveCmd = &cobra.Command{
-	Use:   "merge approve <mr>",
-	Short: "Approve a merge request",
+	Use:   "merge approve <mr-id>",
+	Short: "Approve and execute a merge",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {
 			return err
 		}
 
+		if assemblyMgr == nil {
+			return fmt.Errorf("assembly manager not initialized")
+		}
+
+		ctx := context.Background()
 		mrID := args[0]
-		// TODO: Approve merge request
-		printSuccess("Merge request '%s' approved", mrID)
+
+		// Check for conflicts first
+		conflicts, err := assemblyMgr.CheckConflicts(ctx, mrID)
+		if err != nil {
+			return fmt.Errorf("checking conflicts: %w", err)
+		}
+
+		if len(conflicts) > 0 {
+			printError("Merge has conflicts:")
+			for _, f := range conflicts {
+				fmt.Printf("  - %s\n", f)
+			}
+			return fmt.Errorf("resolve conflicts before approving")
+		}
+
+		// Execute the merge
+		if err := assemblyMgr.Merge(ctx, mrID); err != nil {
+			return fmt.Errorf("merge failed: %w", err)
+		}
+
+		printSuccess("Merge %s completed successfully", mrID)
 		return nil
 	},
 }
 
 var mergeBlockCmd = &cobra.Command{
-	Use:   "merge block <mr> <reason>",
+	Use:   "merge block <mr-id> <reason>",
 	Short: "Block a merge request",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -67,10 +142,19 @@ var mergeBlockCmd = &cobra.Command{
 			return err
 		}
 
+		if assemblyMgr == nil {
+			return fmt.Errorf("assembly manager not initialized")
+		}
+
+		ctx := context.Background()
 		mrID := args[0]
-		// reason := args[1]
-		// TODO: Block merge request
-		printSuccess("Merge request '%s' blocked", mrID)
+		reason := args[1]
+
+		if err := assemblyMgr.Escalate(ctx, mrID, reason); err != nil {
+			return fmt.Errorf("blocking merge: %w", err)
+		}
+
+		printSuccess("Merge %s blocked: %s", mrID, reason)
 		return nil
 	},
 }
