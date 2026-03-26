@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/uttufy/FactoryAI/internal/events"
 	"github.com/uttufy/FactoryAI/internal/store"
 	"github.com/uttufy/FactoryAI/internal/tmux"
@@ -19,10 +21,10 @@ import (
 type StationStatus string
 
 const (
-	StationIdle     StationStatus = "idle"
-	StationBusy     StationStatus = "busy"
-	StationOffline  StationStatus = "offline"
-	StationError    StationStatus = "error"
+	StationIdle    StationStatus = "idle"
+	StationBusy    StationStatus = "busy"
+	StationOffline StationStatus = "offline"
+	StationError   StationStatus = "error"
 )
 
 // Station represents a workstation with isolated worktree
@@ -73,12 +75,22 @@ func (m *Manager) Provision(ctx context.Context, name string) (*Station, error) 
 		return nil, fmt.Errorf("max stations limit reached: %d", m.maxStations)
 	}
 
-	// Generate station ID
-	stationID := fmt.Sprintf("station-%d", len(m.stations)+1)
+	// Generate unique station ID using UUID to avoid conflicts
+	stationID := fmt.Sprintf("station-%s", uuid.New().String()[:8])
 	now := time.Now()
 
 	// Create worktree path
 	worktreePath := filepath.Join(m.projectPath, ".factory", stationID)
+
+	// Clean up any orphaned directory if it exists
+	if _, err := os.Stat(worktreePath); err == nil {
+		// Directory exists, try to clean it up
+		_ = os.RemoveAll(worktreePath)
+		// Also try to prune any stale worktree references
+		cmd := exec.Command("git", "worktree", "prune")
+		cmd.Dir = m.projectPath
+		_, _ = cmd.CombinedOutput()
+	}
 
 	// Create git worktree
 	if err := m.createWorktree(worktreePath); err != nil {
@@ -108,6 +120,12 @@ func (m *Manager) Provision(ctx context.Context, name string) (*Station, error) 
 
 	m.stations[stationID] = station
 
+	// Persist to database
+	if err := m.store.SaveStation(stationToDB(station)); err != nil {
+		// Log error but don't fail - in-memory state is more important
+		fmt.Printf("Warning: failed to persist station to database: %v\n", err)
+	}
+
 	// Emit event
 	m.events.Emit(events.EventStationReady, "station_manager", stationID, map[string]interface{}{
 		"name":          name,
@@ -116,6 +134,40 @@ func (m *Manager) Provision(ctx context.Context, name string) (*Station, error) 
 	})
 
 	return station, nil
+}
+
+// stationToDB converts Station to store.Station for database persistence
+func stationToDB(s *Station) *store.Station {
+	return &store.Station{
+		ID:           s.ID,
+		Name:         s.Name,
+		Status:       string(s.Status),
+		WorktreePath: s.WorktreePath,
+		TmuxSession:  s.TmuxSession,
+		TmuxWindow:   s.TmuxWindow,
+		TmuxPane:     s.TmuxPane,
+		CurrentJob:   s.CurrentJob,
+		OperatorID:   s.OperatorID,
+		CreatedAt:    s.CreatedAt,
+		LastActivity: s.LastActivity,
+	}
+}
+
+// dbToStation converts store.Station to Station
+func dbToStation(s *store.Station) *Station {
+	return &Station{
+		ID:           s.ID,
+		Name:         s.Name,
+		Status:       StationStatus(s.Status),
+		WorktreePath: s.WorktreePath,
+		TmuxSession:  s.TmuxSession,
+		TmuxWindow:   s.TmuxWindow,
+		TmuxPane:     s.TmuxPane,
+		CurrentJob:   s.CurrentJob,
+		OperatorID:   s.OperatorID,
+		CreatedAt:    s.CreatedAt,
+		LastActivity: s.LastActivity,
+	}
 }
 
 // Decommission removes a station and cleans up worktree

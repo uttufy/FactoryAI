@@ -1,0 +1,18 @@
+factory:
+    name: FactoryAI
+    max_stations: 10
+    project_path: /Users/utkarshsharma/projects/FactoryAI
+station:
+    worktree_prefix: .station-
+    default_branch: main
+operator:
+    heartbeat_interval: 30
+    stuck_timeout: 300
+    max_retries: 3
+database:
+    path: .factory/factory.db
+beads:
+    binary_path: beads
+logging:
+    level: info
+    format: text

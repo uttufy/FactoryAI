@@ -66,9 +66,9 @@ func init() {
 }
 
 func attachTraveler(stationID, beadID string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	if err := factory.Planner.Dispatch(context.Background(), beadID, stationID); err != nil {
@@ -83,9 +83,9 @@ func attachTraveler(stationID, beadID string) error {
 }
 
 func showTraveler(stationID string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	traveler, err := factory.BeadsClient.GetTraveler(stationID)
@@ -128,9 +128,9 @@ func showTraveler(stationID string) error {
 }
 
 func clearTraveler(stationID string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	if err := factory.BeadsClient.ClearTraveler(stationID); err != nil {

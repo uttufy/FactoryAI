@@ -191,11 +191,67 @@ func initFactory() error {
 	}
 
 	fmt.Printf("Created database: %s\n", dbPath)
+
+	// Initialize beads
+	fmt.Println("\nInitializing beads...")
+	if err := initializeBeads(cfg, absPath); err != nil {
+		fmt.Printf("Warning: beads initialization failed: %v\n", err)
+		fmt.Println("You may need to run 'bd init' manually.")
+	}
+
 	fmt.Println("\nFactory initialized successfully!")
 	fmt.Println("\nNext steps:")
 	fmt.Println("  1. Edit factory.yaml to configure your factory")
 	fmt.Println("  2. Run 'factory boot' to start the factory")
 	fmt.Println("  3. Run 'factory station add <name>' to add stations")
+
+	return nil
+}
+
+// runBeadsDoctor runs beads doctor and returns error if critical issues found
+func runBeadsDoctor(cfg *config.Config, absPath string) error {
+	// Create beads client
+	beadsClient, err := beads.NewClient(cfg.Beads.BinaryPath, absPath)
+	if err != nil {
+		return fmt.Errorf("creating beads client: %w", err)
+	}
+
+	if err := beadsClient.Doctor(); err != nil {
+		return err
+	}
+
+	fmt.Println("Beads doctor check passed.")
+	return nil
+}
+
+// initializeBeads initializes beads and installs git hooks
+func initializeBeads(cfg *config.Config, absPath string) error {
+	// Create beads client
+	beadsClient, err := beads.NewClient(cfg.Beads.BinaryPath, absPath)
+	if err != nil {
+		return fmt.Errorf("creating beads client: %w", err)
+	}
+
+	// Check if beads is already initialized
+	if beadsClient.IsInitialized() {
+		fmt.Println("Beads already initialized.")
+	} else {
+		// Get prefix from directory name
+		prefix := filepath.Base(absPath)
+		fmt.Printf("Running 'bd init --prefix %s'...\n", prefix)
+		if err := beadsClient.Init(prefix); err != nil {
+			return err
+		}
+		fmt.Println("Beads initialized successfully.")
+	}
+
+	// Install git hooks
+	fmt.Println("Installing git hooks...")
+	if err := beadsClient.InstallHooks(); err != nil {
+		fmt.Printf("Warning: could not install git hooks: %v\n", err)
+	} else {
+		fmt.Println("Git hooks installed successfully.")
+	}
 
 	return nil
 }
@@ -213,6 +269,12 @@ func bootFactory() error {
 	}
 
 	fmt.Printf("Booting factory in %s\n", absPath)
+
+	// Run beads doctor to check system health
+	fmt.Println("Running beads doctor...")
+	if err := runBeadsDoctor(cfg, absPath); err != nil {
+		return fmt.Errorf("beads doctor check failed:\n%w\n\nPlease fix beads issues before booting the factory.\nRun 'bd doctor' for details.", err)
+	}
 
 	// Initialize components
 	factory, err := initializeFactory(cfg, absPath)
@@ -534,4 +596,33 @@ func GetFactory() *Factory {
 // SetFactory sets the factory instance (for testing)
 func SetFactory(f *Factory) {
 	factoryInstance = f
+}
+
+// getOrCreateFactory returns the existing factory instance or creates a new one
+// This allows commands to work without requiring 'factory boot' to be running
+func getOrCreateFactory() (*Factory, error) {
+	// Return existing instance if available
+	if factoryInstance != nil {
+		return factoryInstance, nil
+	}
+
+	// Create a new factory instance from config
+	absPath, err := filepath.Abs(projectPath)
+	if err != nil {
+		return nil, fmt.Errorf("getting absolute path: %w", err)
+	}
+
+	// Load config
+	cfg, err := loadConfig(absPath)
+	if err != nil {
+		return nil, fmt.Errorf("loading config: %w (run 'factory init' first)", err)
+	}
+
+	// Initialize factory components
+	factory, err := initializeFactory(cfg, absPath)
+	if err != nil {
+		return nil, fmt.Errorf("initializing factory: %w", err)
+	}
+
+	return factory, nil
 }

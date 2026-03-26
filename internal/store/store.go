@@ -338,8 +338,35 @@ func (s *Store) SetFactoryStopped() error {
 
 // SaveStation saves a station to the database
 func (s *Store) SaveStation(station interface{}) error {
-	// This is a simplified implementation
-	// In a full implementation, we would properly serialize the station
+	st, ok := station.(*Station)
+	if !ok {
+		return fmt.Errorf("invalid station type")
+	}
+
+	query := `
+		INSERT INTO stations (id, name, status, worktree_path, tmux_session, tmux_window, tmux_pane, current_job, operator_id, created_at, last_activity)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			name = excluded.name,
+			status = excluded.status,
+			worktree_path = excluded.worktree_path,
+			tmux_session = excluded.tmux_session,
+			tmux_window = excluded.tmux_window,
+			tmux_pane = excluded.tmux_pane,
+			current_job = excluded.current_job,
+			operator_id = excluded.operator_id,
+			last_activity = excluded.last_activity
+	`
+
+	_, err := s.db.Exec(query,
+		st.ID, st.Name, st.Status, st.WorktreePath, st.TmuxSession,
+		st.TmuxWindow, st.TmuxPane, st.CurrentJob, st.OperatorID,
+		st.CreatedAt, st.LastActivity,
+	)
+	if err != nil {
+		return fmt.Errorf("saving station: %w", err)
+	}
+
 	return nil
 }
 

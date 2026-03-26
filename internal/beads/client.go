@@ -5,6 +5,7 @@ package beads
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -38,6 +39,9 @@ func (c *Client) Execute(args ...string) (string, error) {
 	if c.workingDir != "" {
 		cmd.Dir = c.workingDir
 	}
+
+	// Disable pager for all commands
+	cmd.Env = append(os.Environ(), "PAGER=cat", "GIT_PAGER=cat")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -417,4 +421,66 @@ func (c *Client) ListBatches() ([]*Batch, error) {
 	}
 
 	return batches, nil
+}
+
+// Init initializes beads in the working directory
+// Runs: bd init --prefix <prefix>
+func (c *Client) Init(prefix string) error {
+	args := []string{"init", "--prefix", prefix}
+	_, err := c.Execute(args...)
+	if err != nil {
+		return fmt.Errorf("initializing beads: %w", err)
+	}
+	return nil
+}
+
+// Doctor runs beads doctor to check system health
+// Returns error if doctor finds critical errors
+func (c *Client) Doctor() error {
+	args := []string{"doctor"}
+	cmd := exec.Command(c.binaryPath, args...)
+	if c.workingDir != "" {
+		cmd.Dir = c.workingDir
+	}
+
+	// Disable pager for all commands
+	cmd.Env = append(os.Environ(), "PAGER=cat", "GIT_PAGER=cat")
+
+	output, _ := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	// Check for critical errors in output - look for error symbol with "Installation" error
+	// which indicates beads is not initialized
+	// Note: bd doctor returns exit code 1 for warnings too, so we check the actual content
+	if strings.Contains(outputStr, "✖") {
+		// Check for critical errors (like no .beads directory)
+		if strings.Contains(outputStr, "No .beads/") || strings.Contains(outputStr, "Installation:") {
+			return fmt.Errorf("beads doctor found errors:\n%s", outputStr)
+		}
+	}
+
+	return nil
+}
+
+// InstallHooks installs recommended git hooks
+// Runs: bd hooks install
+func (c *Client) InstallHooks() error {
+	args := []string{"hooks", "install"}
+	_, err := c.Execute(args...)
+	if err != nil {
+		return fmt.Errorf("installing git hooks: %w", err)
+	}
+	return nil
+}
+
+// IsInitialized checks if beads is initialized in the working directory
+func (c *Client) IsInitialized() bool {
+	args := []string{"doctor"}
+	output, err := c.Execute(args...)
+	if err != nil {
+		return false
+	}
+
+	// Check if .beads directory exists
+	return !strings.Contains(output, "No .beads/ directory found")
 }

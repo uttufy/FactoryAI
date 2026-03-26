@@ -66,9 +66,9 @@ func init() {
 }
 
 func createBatch(name string, jobIDs []string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	batch, err := factory.BeadsClient.CreateBatch(name, jobIDs)
@@ -85,9 +85,9 @@ func createBatch(name string, jobIDs []string) error {
 }
 
 func listBatches() error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	batches, err := factory.BeadsClient.ListBatches()
@@ -120,9 +120,9 @@ func listBatches() error {
 }
 
 func showBatchStatus(id string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	batch, err := factory.BeadsClient.GetBatch(id)

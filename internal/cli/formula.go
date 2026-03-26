@@ -97,9 +97,9 @@ func init() {
 }
 
 func listFormulas() error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	formulas, err := factory.WorkflowEngine.ListFormulas()
@@ -131,9 +131,9 @@ func listFormulas() error {
 }
 
 func showFormula(path string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	formula, err := factory.WorkflowEngine.LoadFormula(path)
@@ -177,9 +177,9 @@ func showFormula(path string) error {
 }
 
 func cookFormula(path string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	sop, err := factory.WorkflowEngine.CookFormula(path, nil)
@@ -196,9 +196,9 @@ func cookFormula(path string) error {
 }
 
 func runFormula(path, task string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	// Cook the formula

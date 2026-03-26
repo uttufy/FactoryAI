@@ -97,9 +97,9 @@ func init() {
 }
 
 func createJob(title string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	bead, err := factory.BeadsClient.Create("task", title)
@@ -116,9 +116,9 @@ func createJob(title string) error {
 }
 
 func listJobs() error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	beadList, err := factory.BeadsClient.List(beads.BeadFilter{Type: beads.BeadTask})
@@ -154,9 +154,9 @@ func listJobs() error {
 }
 
 func showJob(id string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	bead, err := factory.BeadsClient.Get(id)
@@ -206,9 +206,9 @@ func showJob(id string) error {
 }
 
 func closeJob(id string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	if err := factory.BeadsClient.Close(id); err != nil {
@@ -220,9 +220,9 @@ func closeJob(id string) error {
 }
 
 func dispatchJob(jobID, stationID string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	ctx := context.Background()

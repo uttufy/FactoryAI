@@ -90,9 +90,9 @@ func init() {
 }
 
 func addStation(name string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	ctx := context.Background()
@@ -163,9 +163,9 @@ func listStations() error {
 }
 
 func removeStation(id string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	ctx := context.Background()
@@ -179,9 +179,9 @@ func removeStation(id string) error {
 }
 
 func showStationStatus(id string) error {
-	factory := GetFactory()
-	if factory == nil {
-		return fmt.Errorf("factory not running. Run 'factory boot' first")
+	factory, err := getOrCreateFactory()
+	if err != nil {
+		return err
 	}
 
 	ctx := context.Background()
