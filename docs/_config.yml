@@ -1,0 +1,22 @@
+title: FactoryAI Documentation
+description: Manufacturing-plant-inspired multi-agent workspace manager
+theme: jekyll-theme-cayman
+
+# Enable for GitHub Pages
+remote_theme: true
+
+# Navigation
+header_pages:
+  - quick-start.md
+  - cli.md
+
+# Footer
+footer_content: "Copyright © 2026 FactoryAI. Built with GitHub Pages."
+
+# Plugins
+plugins:
+  - jekyll-remote-theme
+
+# Markdown processing
+markdown: kramdown
+highlighter: rouge

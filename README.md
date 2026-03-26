@@ -6,7 +6,7 @@ Inspired by Steve Yegge's [Gas Town](https://steve-yegge.medium.com/welcome-to-g
 
 ## Overview
 
-FactoryAI v1.0 is a complete rewrite implementing a production-grade multi-agent system with:
+FactoryAI v0.2 is a production-grade multi-agent system with:
 
 - **Beads CLI Integration** - Work item management via `beads` command
 - **tmux Session Management** - Real-time station monitoring
@@ -15,6 +15,8 @@ FactoryAI v1.0 is a complete rewrite implementing a production-grade multi-agent
 - **Event-Driven Architecture** - Andon Board pub/sub system
 - **Git Worktree Isolation** - Parallel work in isolated environments
 - **Merge Queue** - Conflict detection and parallel merging
+- **Mail System** - Inter-agent messaging
+- **Role Management** - Configurable agent roles
 
 ## Features
 
@@ -22,7 +24,6 @@ FactoryAI v1.0 is a complete rewrite implementing a production-grade multi-agent
 - **Plant Director** - Single authority for orchestration
 - **Production Planner** - Priority-based dispatch to available stations
 - **Floor Supervisor** - Handoff coordination and monitoring
-- **Quality Inspector** - Work verification and rework triggering
 - **Support Service** - Health checks, cleanup, and lease recovery
 - **Final Assembly** - Merge queue with conflict detection
 
@@ -40,7 +41,7 @@ FactoryAI v1.0 is a complete rewrite implementing a production-grade multi-agent
 - **Variable Substitution** - Dynamic workflow customization
 
 ### User Interface
-- **40+ CLI Commands** - Complete factory management
+- **46+ CLI Commands** - Complete factory management
 - **TUI Dashboard** - Real-time batch progress visualization
 - **Mail System** - Inter-agent messaging
 
@@ -52,7 +53,7 @@ git clone https://github.com/uttufy/FactoryAI.git
 cd FactoryAI
 
 # Build the binary
-go build -o factory ./cmd/factory/main.go
+go build -o factory ./cmd/factory/...
 
 # (Optional) Install to PATH
 sudo mv factory /usr/local/bin/
@@ -60,7 +61,7 @@ sudo mv factory /usr/local/bin/
 
 ## Requirements
 
-- Go 1.22+
+- Go 1.24+
 - [Claude CLI](https://claude.ai/code) installed and in PATH
 - [Beads CLI](https://github.com/steveyegge/beads) installed and in PATH
 - tmux (for session management)
@@ -108,7 +109,7 @@ sudo mv factory /usr/local/bin/
 
 ```bash
 # Create a batch
-./factory batch create "batch-name" --beads bead1,bead2,bead3
+./factory batch create "batch-name" bead1 bead2 bead3
 
 # Check batch status
 ./factory batch status <batch-id>
@@ -117,14 +118,14 @@ sudo mv factory /usr/local/bin/
 ./factory batch list
 
 # View dashboard
-./factory batch dashboard <batch-id>
+./factory batch dashboard
 ```
 
 ### Manage Stations
 
 ```bash
 # Add a station
-./factory station add --name "station-1" --git-ref main
+./factory station add --name "station-1"
 
 # List stations
 ./factory station list
@@ -140,7 +141,7 @@ sudo mv factory /usr/local/bin/
 
 ```bash
 # Spawn an operator
-./factory operator spawn --station <station-id> --role "developer"
+./factory operator spawn --station <station-id>
 
 # List operators
 ./factory operator list
@@ -155,30 +156,98 @@ sudo mv factory /usr/local/bin/
 ### Work with Formulas
 
 ```bash
-# Load a formula
-./factory formula load --path ./formulas/feature.toml
-
-# List formulas
+# List available formulas
 ./factory formula list
 
-# Show formula status
-./factory formula status <formula-id>
+# Show formula details
+./factory formula show feature
+
+# Create a new formula
+./factory formula create my-workflow
+
+# Validate a formula
+./factory formula validate formulas/feature.toml
+```
+
+### Work with SOPs
+
+```bash
+# List SOPs
+./factory sop list
+
+# Show SOP details
+./factory sop show <sop-id>
+
+# Execute an SOP
+./factory sop execute <sop-id>
+```
+
+### Execution Commands
+
+```bash
+# Run a job immediately
+./factory run <job-id>
+
+# Dispatch a job to a station
+./factory dispatch <job-id> <station-id>
+
+# Generate a plan from a goal
+./factory plan "Build a REST API"
 ```
 
 ### Support Commands
 
 ```bash
 # Run health check
-./factory health
+./factory support status
 
-# Run cleanup
-./factory cleanup
+# View support logs
+./factory support logs
 
-# Nudge an operator
-./factory nudge --operator <operator-id> --message "Please continue"
+# Attach support to a station
+./factory support attach <station-id>
+```
 
-# Nudge all operators
-./factory nudge --all --message "Factory resuming"
+### Merge Queue Commands
+
+```bash
+# Show merge queue status
+./factory merge status
+
+# List pending merges
+./factory merge list
+
+# Approve and execute a merge
+./factory merge approve <mr-id>
+
+# Block a merge request
+./factory merge block <mr-id> "reason"
+```
+
+### Mail Commands
+
+```bash
+# Send a message
+./factory mail send <to> <subject> <body>
+
+# Broadcast to all stations
+./factory mail broadcast <subject> <body>
+
+# List messages
+./factory mail list
+```
+
+### Role Commands
+
+```bash
+# List available roles
+./factory role list
+
+# Set current operator role
+./factory role set <role>
+
+# Clear current role
+./factory role clear
 ```
 
 ## Architecture
@@ -244,7 +313,6 @@ sudo mv factory /usr/local/bin/
 | `internal/director` | Plant Director - top-level orchestrator |
 | `internal/planner` | Production Planner - single dispatcher |
 | `internal/supervisor` | Floor Supervisor - handoff coordination |
-| `internal/inspector` | Quality Inspector - work verification |
 | `internal/support` | Support Service - health & cleanup |
 | `internal/assembly` | Final Assembly - merge queue |
 | `internal/station` | Station Manager - worktree provisioning |
@@ -268,25 +336,41 @@ Located at `configs/factory.yaml`:
 
 ```yaml
 factory:
-  name: "My Factory"
-  description: "A production factory"
+  name: "Main Factory"
+  description: "Primary FactoryAI instance"
 
-paths:
-  project: "."
-  formulas: "./formulas"
-  roles: "./configs/roles"
+  # Station limits
+  max_stations: 10
+  max_operators: 20
 
-stations:
-  max_concurrent: 4
-  default_branch: "main"
+  # Default timeouts
+  default_timeout: 3600  # 1 hour
+  heartbeat_interval: 30  # seconds
 
-operators:
-  heartbeat_interval: "30s"
-  stuck_timeout: "5m"
+  # Worktree configuration
+  worktree_dir: ".factory"
+  cleanup_on_exit: true
 
-events:
+# Event Bus configuration
+event_bus:
   buffer_size: 1000
+  log_events: true
   dead_letter_enabled: true
+
+# Database configuration
+database:
+  path: "./factory.db"
+  connection_pool: 5
+
+# tmux configuration
+tmux:
+  session_prefix: "factory-"
+  base_window_name: "factory"
+
+# Claude configuration
+claude:
+  binary_path: ""  # Empty means use PATH or CLAUDE_BIN env var
+  model: "claude-opus-4-6"  # Default model
 ```
 
 ### Role Configurations
@@ -310,20 +394,20 @@ description = "Standard workflow for implementing features"
 
 [[steps]]
 name = "design"
-role = "Architect"
-template = "Design a solution for: {task}"
+description = "Design a solution for: {task}"
+assignee = "architect"
 
 [[steps]]
 name = "implement"
-role = "Developer"
-depends_on = ["design"]
-template = "Implement based on design: {context}"
+description = "Implement based on design: {context}"
+assignee = "developer"
+dependencies = ["design"]
 
 [[steps]]
 name = "review"
-role = "Reviewer"
-depends_on = ["implement"]
-template = "Review the implementation: {context}"
+description = "Review the implementation: {context}"
+assignee = "reviewer"
+dependencies = ["implement"]
 ```
 
 ### Code Review
@@ -334,45 +418,18 @@ description = "Multi-perspective code review"
 
 [[steps]]
 name = "correctness"
-role = "Senior Engineer"
-template = "Review for correctness: {task}"
+description = "Review for correctness: {task}"
+assignee = "Senior Engineer"
 
 [[steps]]
 name = "style"
-role = "Style Reviewer"
-template = "Review for style: {task}"
+description = "Review for style: {task}"
+assignee = "Style Reviewer"
 
 [[steps]]
 name = "security"
-role = "Security Expert"
-template = "Review for security: {task}"
-```
-
-### Release Workflow
-
-```toml
-name = "Release"
-description = "Complete release workflow"
-
-[[steps]]
-name = "test"
-role = "QA Engineer"
-template = "Run tests: {task}"
-
-[[steps]]
-name = "bump-version"
-role = "Release Manager"
-depends_on = ["test"]
-
-[[steps]]
-name = "tag"
-role = "Release Manager"
-depends_on = ["bump-version"]
-
-[[steps]]
-name = "push"
-role = "DevOps Engineer"
-depends_on = ["tag"]
+description = "Review for security: {task}"
+assignee = "Security Expert"
 ```
 
 ## CLI Commands
@@ -408,8 +465,6 @@ depends_on = ["tag"]
 - `job list` - List jobs
 - `job show` - Show job details
 - `job close` - Close a job
-- `job epic` - Create an epic
-- `job add-child` - Add child to epic
 
 ### Traveler Commands
 - `traveler attach` - Attach traveler to station
@@ -423,30 +478,41 @@ depends_on = ["tag"]
 - `batch dashboard` - Show batch dashboard
 
 ### Formula Commands
-- `formula load` - Load a formula
-- `formula list` - List formulas
 - `formula create` - Create a formula
-- `formula status` - Show formula status
+- `formula list` - List formulas
+- `formula show` - Show formula details
+- `formula validate` - Validate a formula
+
+### SOP Commands
+- `sop list` - List SOPs
+- `sop show` - Show SOP details
+- `sop execute` - Execute an SOP
+
+### Execution Commands
+- `run` - Run a job immediately
+- `dispatch` - Dispatch a job to a station
+- `plan` - Generate a plan from a goal
 
 ### Support Commands
-- `health` - Run health check
-- `cleanup` - Run cleanup
-- `nudge` - Nudge an operator
+- `support status` - Run health check
+- `support logs` - View support logs
+- `support attach` - Attach support to a station
 
 ### Merge Queue Commands
-- `mq list` - List merge requests
-- `mq status` - Show merge status
-- `mq escalate` - Escalate merge issue
+- `merge status` - Show merge queue status
+- `merge list` - List pending merges
+- `merge approve` - Approve and execute a merge
+- `merge block` - Block a merge request
 
 ### Mail Commands
-- `mail send` - Send mail
-- `mail read` - Read mail
-- `mail broadcast` - Broadcast mail
+- `mail send` - Send a message
+- `mail broadcast` - Broadcast to all stations
+- `mail list` - List messages
 
 ### Role Commands
-- `role start` - Start a role
-- `role stop` - Stop a role
-- `role list` - List roles
+- `role list` - List available roles
+- `role set` - Set current operator role
+- `role clear` - Clear current role
 
 ## Environment Variables
 
@@ -469,11 +535,18 @@ FactoryAI uses an in-memory pub/sub event system for real-time communication:
 
 - `JobCreated` - New job created
 - `JobQueued` - Job queued for processing
-- `StepStarted` - Processing step started
-- `StepCompleted` - Processing step completed
-- `StepFailed` - Processing step failed
+- `JobStarted` - Processing started
+- `JobCompleted` - Processing completed
+- `JobFailed` - Processing failed
+- `StepQueued` - Step queued for execution
+- `StepStarted` - Step execution started
+- `StepCompleted` - Step execution completed
+- `StepFailed` - Step execution failed
 - `StationReady` - Station ready for work
+- `StationBusy` - Station is busy
 - `StationOffline` - Station went offline
+- `OperatorSpawned` - Operator spawned
+- `OperatorIdle` - Operator is idle
 - `OperatorStuck` - Operator detected as stuck
 - `OperatorHandoff` - Operator handoff in progress
 - `MergeReady` - Work ready for merge
@@ -482,8 +555,7 @@ FactoryAI uses an in-memory pub/sub event system for real-time communication:
 - `MergeConflict` - Merge conflict detected
 - `HealthOK` - Health check passed
 - `CleanupDone` - Cleanup completed
-- `QualityFailed` - Quality check failed
-- `ReworkNeeded` - Rework required
+- `FactoryShutdown` - Factory shutting down
 
 ### Subscriptions
 

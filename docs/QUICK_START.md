@@ -1,318 +1,402 @@
 # FactoryAI Quick Start Guide
 
-> **Important Note:** FactoryAI v1.0 architecture is implemented but most commands are **TODO stubs**. The **v0.x blueprint system** (`factory run`) is **fully functional** and ready to use.
+## Prerequisites
 
-## What Works Right Now
+Before you begin, ensure you have the following installed:
 
-| Command | Status | Description |
-|---------|--------|-------------|
-| `factory run` | ✅ **Working** | Execute blueprint with task |
-| `factory list-blueprints` | ✅ **Working** | List available blueprints |
-| `factory init` | 🚧 Stub | Just prints message |
-| `factory boot` | 🚧 Stub | Just prints message |
-| `factory status` | 🚧 Stub | Just prints message |
-| `factory job create` | 🚧 Stub | Just prints message |
-| `factory job list` | 🚧 Stub | Shows empty list |
-| Other v1.0 commands | 🚧 Stub | Not implemented yet |
+- **Go 1.22+** - [Download Go](https://golang.org/dl/)
+- **Claude CLI** - [Claude Code](https://claude.ai/code)
+- **Beads CLI** - [github.com/steveyegge/beads](https://github.com/steveyegge/beads)
+- **tmux** - Terminal multiplexer for session management
+- **Git** - Version control for worktrees
 
----
-
-## Quick Start (Working Method)
-
-### Prerequisites
+## Installation
 
 ```bash
-# Check Go version (need 1.22+)
-go version
+# Clone the repository
+git clone https://github.com/uttufy/FactoryAI.git
+cd FactoryAI
 
-# Check Claude CLI (required)
-which claude
-
-# Check tmux (required)
-which tmux
-```
-
-### Step 1: Build
-
-```bash
-cd /Users/utkarshsharma/projects/FactoryAI
+# Build the binary
 go build -o factory ./cmd/factory/main.go
+
+# (Optional) Install to PATH
+sudo mv factory /usr/local/bin/
 ```
 
-### Step 2: Add to PATH
+## Your First Factory
+
+### Step 1: Initialize
+
+Create a factory in your project directory:
 
 ```bash
-# Add to shell
-echo 'export PATH="$PATH:/Users/utkarshsharma/projects/FactoryAI"' >> ~/.zshrc
-source ~/.zshrc
-
-# Verify
-factory --help
+cd your-project
+factory init
 ```
 
-### Step 3: Run a Task
+This creates:
+- `.factory/` directory
+- SQLite database at `.factory/factory.db`
+- Default configuration
+
+### Step 2: Boot the Factory
+
+Start all services:
 
 ```bash
-# Navigate to your project
-cd ~/projects/test
-
-# Run with blueprint (using full path)
-factory run \
-  --blueprint /Users/utkarshsharma/projects/FactoryAI/blueprints/research_factory.yaml \
-  --task "Explain what a factory pattern is in software engineering"
-
-# Or without TUI (faster, no UI)
-factory run \
-  --blueprint /Users/utkarshsharma/projects/FactoryAI/blueprints/research_factory.yaml \
-  --task "Explain the difference between TCP and UDP" \
-  --no-tui
+factory boot
 ```
 
----
+This initializes:
+- Event bus (Andon Board)
+- Station manager
+- Operator pool
+- DAG workflow engine
+- Planner
+- Supervisor
+- Support service
+- Assembly (merge queue)
+- Mail system
+- Director
 
-## Using Available Blueprints
+### Step 3: Check Status
 
-### List Blueprints
+Verify everything is running:
 
 ```bash
-cd /Users/utkarshsharma/projects/FactoryAI
-factory list-blueprints
+factory status
 ```
 
-### Research Factory
+Expected output:
+```
+Factory Status: Running
+Uptime: 10s
+Active Jobs: 0
+Pending Batches: 0
 
-For research and explanation tasks:
+Stations:
+  (none)
+```
+
+## Working with Stations
+
+### Add a Station
 
 ```bash
-factory run \
-  --blueprint ./blueprints/research_factory.yaml \
-  --task "Explain quantum computing to a 10-year-old" \
-  --no-tui
+factory station add --name "dev-station"
 ```
 
-### Coding Factory
+This creates:
+- Git worktree at `.factory/worktrees/dev-station/`
+- tmux session `factory-dev-station`
 
-For code generation tasks:
+### List Stations
 
 ```bash
-factory run \
-  --blueprint ./blueprints/coding_factory.yaml \
-  --task "Write a Python function to calculate fibonacci numbers" \
-  --no-tui
+factory station list
 ```
 
-### Review Factory
-
-For code review tasks:
+### Spawn an Operator
 
 ```bash
-factory run \
-  --blueprint ./blueprints/review_factory.yaml \
-  --task "Review this code: \nfunc add(a, b int) int { return a + b }" \
-  --no-tui
+factory operator spawn --station <station-id>
 ```
 
----
+## Working with Jobs
 
-## Creating Your Own Blueprint
-
-Create `my-blueprint.yaml`:
-
-```yaml
-factory:
-  name: "My Factory"
-  description: "My custom factory"
-
-  assembly_lines:
-    - name: "main-line"
-      stations:
-        - name: "task"
-          role: "Assistant"
-          prompt: |
-            Task: {task}
-
-            Please provide a clear, well-structured response.
-```
-
-Run it:
+### Create a Job
 
 ```bash
-factory run --blueprint ./my-blueprint.yaml --task "Explain Big O notation"
+factory job create "Implement user authentication"
 ```
 
----
-
-## Blueprint Structure
-
-```yaml
-factory:
-  name: "Factory Name"
-  description: "Description"
-
-  assembly_lines:           # Parallel execution tracks
-    - name: "line-1"
-      stations:
-        - name: "step-1"
-          role: "Developer"
-          prompt: "Task: {task}\nContext: {context}"
-          inspector:        # Optional quality check
-            enabled: true
-            criteria: "Must be correct"
-
-    - name: "line-2"        # Runs in parallel with line-1
-      stations:
-        - name: "alternative"
-          role: "Architect"
-          prompt: "Alternative approach for: {task}"
-
-  merger:
-    type: "concat"          # How to combine outputs
-    separator: "\n\n---\n\n"
-```
-
-### Template Variables
-
-- `{task}` - Your original task
-- `{context}` - Output from previous station
-- `{role}` - Current station's role
-
----
-
-## Sample Tasks to Try
+### List Jobs
 
 ```bash
-# Explanations
-factory run -b ./blueprints/research_factory.yaml -t "Explain monads" --no-tui
-
-# Code generation
-factory run -b ./blueprints/coding_factory.yaml -t "Write a REST API in Go" --no-tui
-
-# Analysis
-factory run -b ./blueprints/research_factory.yaml -t "Compare SQL vs NoSQL" --no-tui
-
-# Documentation
-factory run -b ./blueprints/research_factory.yaml -t "Document the installation process" --no-tui
+factory job list
 ```
 
----
-
-## Troubleshooting
-
-### "blueprint not found"
+### Show Job Details
 
 ```bash
-# Use absolute path
-factory run \
-  --blueprint /Users/utkarshsharma/projects/FactoryAI/blueprints/research_factory.yaml \
-  --task "your task"
+factory job show <job-id>
 ```
 
-### "claude: command not found"
+### Close a Job
 
 ```bash
-# Install Claude CLI
-# See: https://claude.ai/code
-
-# Or specify path
-export CLAUDE_BIN=/path/to/claude
+factory job close <job-id>
 ```
 
-### TUI Issues
+## Working with Batches
+
+### Create a Batch
 
 ```bash
-# Use --no-tui flag
-factory run --blueprint ./blueprint.yaml --task "task" --no-tui
+factory batch create "auth-feature" job-1 job-2 job-3
 ```
 
----
+### Track Progress
 
-## Why v1.0 Commands Don't Work Yet
-
-The v1.0 architecture has been **designed and implemented structurally**, but the command implementations are still TODO stubs. For example:
-
-```go
-func initializeFactory(cmd *cobra.Command, args []string) error {
-    fmt.Println("Initializing factory...")
-    // TODO: Create .factory directory, initialize database, etc.
-    return nil
-}
-
-func bootFactory(cmd *cobra.Command, args []string) error {
-    fmt.Println("Booting factory...")
-    // TODO: Start all services
-    return nil
-}
+```bash
+factory batch status <batch-id>
 ```
 
-**What's been implemented:**
-- ✅ Complete package structure (director, planner, supervisor, etc.)
-- ✅ Event bus (Andon Board)
-- ✅ SQLite store with migrations
-- ✅ tmux manager
-- ✅ Beads client
-- ✅ DAG workflow engine
-- ✅ Formulas system
-- ✅ All v0.x blueprint execution
+### View Dashboard
 
-**What needs implementation:**
-- 🚧 CLI command implementations (connecting to the packages)
-- 🚧 Director initialization logic
-- 🚧 Station provisioning
-- 🚧 Operator spawning
-- 🚧 End-to-end workflow execution
+```bash
+factory batch dashboard
+```
 
----
+## Working with Formulas
+
+### List Available Formulas
+
+```bash
+factory formula list
+```
+
+### Show a Formula
+
+```bash
+factory formula show feature
+```
+
+### Create a Custom Formula
+
+```bash
+factory formula create my-workflow
+```
+
+### Validate a Formula
+
+```bash
+factory formula validate formulas/my-workflow.toml
+```
+
+## Running Work
+
+### Execute a Job Immediately
+
+```bash
+factory run <job-id>
+```
+
+### Dispatch to Specific Station
+
+```bash
+factory dispatch <job-id> <station-id>
+```
+
+### Generate a Plan from Goal
+
+```bash
+factory plan "Build a REST API for user management"
+```
+
+This creates:
+- A task bead
+- An SOP with steps (analyze, plan, implement, review)
+
+## Support Services
+
+### Health Check
+
+```bash
+factory support status
+```
+
+Output shows:
+- Database status
+- tmux status
+- Beads client status
+- Disk space
+- Active stations
+- Expired leases
+
+### View Logs
+
+```bash
+factory support logs
+```
+
+### Attach Support to Station
+
+```bash
+factory support attach <station-id>
+```
+
+## Merge Queue
+
+### Check Queue Status
+
+```bash
+factory merge status
+```
+
+### List Pending Merges
+
+```bash
+factory merge list
+```
+
+### Approve a Merge
+
+```bash
+factory merge approve <mr-id>
+```
+
+### Block a Merge
+
+```bash
+factory merge block <mr-id> "Conflicts need resolution"
+```
+
+## Communication
+
+### Send Mail to Operator
+
+```bash
+factory mail send <operator-id> "Update" "Please review the latest changes"
+```
+
+### Broadcast to All
+
+```bash
+factory mail broadcast "Factory Notice" "Lunch break in 30 minutes"
+```
+
+### List Messages
+
+```bash
+factory mail list
+```
+
+## Role Management
+
+### List Available Roles
+
+```bash
+factory role list
+```
+
+Output:
+- Built-in roles (developer, architect, reviewer, tester)
+- Custom roles from `configs/roles/`
+
+### Set Current Role
+
+```bash
+factory role set developer
+```
+
+### Clear Role
+
+```bash
+factory role clear
+```
+
+## Shutdown
+
+### Graceful Shutdown
+
+```bash
+factory shutdown
+```
+
+This:
+- Stops accepting new work
+- Completes in-progress work
+- Saves state to database
+- Cleans up resources
+
+### Pause and Resume
+
+```bash
+# Pause operations
+factory pause
+
+# Resume operations
+factory resume
+```
 
 ## Complete Example
 
+Here's a complete workflow:
+
 ```bash
-# 1. Build
-cd /Users/utkarshsharma/projects/FactoryAI
-go build -o factory ./cmd/factory/main.go
+# 1. Initialize
+factory init
 
-# 2. Add to PATH
-export PATH="$PATH:/Users/utkarshsharma/projects/FactoryAI"
+# 2. Boot
+factory boot &
 
-# 3. Navigate to your project
-cd ~/projects/my-project
+# 3. Wait for boot
+sleep 2
 
-# 4. Run a task
-factory run \
-  --blueprint /Users/utkarshsharma/projects/FactoryAI/blueprints/research_factory.yaml \
-  --task "Explain microservices architecture with pros and cons" \
-  --no-tui
+# 4. Add stations
+factory station add --name "dev-1"
+factory station add --name "dev-2"
 
-# Output shows:
-# - Job ID
-# - Assembly line progress
-# - Station execution
-# - Final merged result
+# 5. Spawn operators
+factory operator spawn --station station-1
+factory operator spawn --station station-2
+
+# 6. Create jobs
+factory job create "Implement login"
+factory job create "Implement logout"
+
+# 7. Create batch
+factory batch create "auth" job-1 job-2
+
+# 8. Check status
+factory status
+
+# 9. View dashboard
+factory batch dashboard
+
+# 10. When done, shutdown
+factory shutdown
 ```
 
----
+## Troubleshooting
+
+### Factory Not Initialized
+
+```
+Error: factory not initialized. Run 'factory init' first
+```
+
+Solution: Run `factory init`
+
+### Factory Not Booted
+
+```
+Error: factory not booted. Run 'factory boot' first
+```
+
+Solution: Run `factory boot`
+
+### Station Not Found
+
+```
+Error: station not found: station-1
+```
+
+Solution: Check station ID with `factory station list`
+
+### Operator Not Responding
+
+```
+Error: operator stuck
+```
+
+Solution: Check with `factory operator status <id>` or nudge with `factory nudge --operator <id> --message "Please continue"`
 
 ## Next Steps
 
-1. **Use the working commands** - `factory run` and `factory list-blueprints`
-2. **Create custom blueprints** - Design your own workflows
-3. **Read the documentation:**
-   - [ARCHITECTURE.md](ARCHITECTURE.md) - Complete v1.0 system design
-   - [FORMULAS.md](FORMULAS.md) - Formula/recipe system
-   - [CLI.md](CLI.md) - Complete command reference
-   - [EVENTS.md](EVENTS.md) - Event system
-
----
-
-## Getting Help
-
-```bash
-# General help
-factory --help
-
-# Command-specific help
-factory run --help
-factory list-blueprints --help
-
-# List blueprints
-factory list-blueprints
-```
+- Read [CLI.md](./CLI.md) for complete command reference
+- Read [ARCHITECTURE.md](./ARCHITECTURE.md) for system design
+- Read [FORMULAS.md](./FORMULAS.md) for workflow recipes
+- Read [EVENTS.md](./EVENTS.md) for event system
