@@ -7,18 +7,18 @@ import (
 	"github.com/uttufy/FactoryAI/internal/beads"
 )
 
-// getJobCmds returns job management commands
-func getJobCmds() []*cobra.Command {
-	return []*cobra.Command{
-		jobCreateCmd,
-		jobListCmd,
-		jobShowCmd,
-		jobCloseCmd,
+// getJobCmd returns the job parent command with all subcommands
+func getJobCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "job",
+		Short: "Job management commands",
 	}
+	cmd.AddCommand(jobCreateCmd, jobListCmd, jobShowCmd, jobCloseCmd)
+	return cmd
 }
 
 var jobCreateCmd = &cobra.Command{
-	Use:   "job create <title>",
+	Use:   "create <title>",
 	Short: "Create a job ticket (bead)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -38,7 +38,7 @@ var jobCreateCmd = &cobra.Command{
 }
 
 var jobListCmd = &cobra.Command{
-	Use:   "job list",
+	Use:   "list",
 	Short: "List job tickets",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if beadsClient == nil {
@@ -64,7 +64,7 @@ var jobListCmd = &cobra.Command{
 }
 
 var jobShowCmd = &cobra.Command{
-	Use:   "job show <id>",
+	Use:   "show <id>",
 	Short: "Show ticket details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -93,7 +93,7 @@ var jobShowCmd = &cobra.Command{
 }
 
 var jobCloseCmd = &cobra.Command{
-	Use:   "job close <id>",
+	Use:   "close <id>",
 	Short: "Close a ticket",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -8,18 +8,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getMergeCmds returns merge queue commands
-func getMergeCmds() []*cobra.Command {
-	return []*cobra.Command{
-		mergeStatusCmd,
-		mergeListCmd,
-		mergeApproveCmd,
-		mergeBlockCmd,
+// getMergeCmd returns the merge parent command with all subcommands
+func getMergeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "merge",
+		Short: "Merge queue commands",
 	}
+	cmd.AddCommand(mergeStatusCmd, mergeListCmd, mergeApproveCmd, mergeBlockCmd)
+	return cmd
 }
 
 var mergeStatusCmd = &cobra.Command{
-	Use:   "merge status",
+	Use:   "status",
 	Short: "Show merge queue status",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {
@@ -58,7 +58,7 @@ var mergeStatusCmd = &cobra.Command{
 }
 
 var mergeListCmd = &cobra.Command{
-	Use:   "merge list",
+	Use:   "list",
 	Short: "List pending merges",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {
@@ -94,7 +94,7 @@ var mergeListCmd = &cobra.Command{
 }
 
 var mergeApproveCmd = &cobra.Command{
-	Use:   "merge approve <mr-id>",
+	Use:   "approve <mr-id>",
 	Short: "Approve and execute a merge",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -134,7 +134,7 @@ var mergeApproveCmd = &cobra.Command{
 }
 
 var mergeBlockCmd = &cobra.Command{
-	Use:   "merge block <mr-id> <reason>",
+	Use:   "block <mr-id> <reason>",
 	Short: "Block a merge request",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {

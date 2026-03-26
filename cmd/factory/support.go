@@ -9,17 +9,18 @@ import (
 	"github.com/uttufy/FactoryAI/internal/events"
 )
 
-// getSupportCmds returns support service commands
-func getSupportCmds() []*cobra.Command {
-	return []*cobra.Command{
-		supportStatusCmd,
-		supportLogsCmd,
-		supportAttachCmd,
+// getSupportCmd returns the support parent command with all subcommands
+func getSupportCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "support",
+		Short: "Support service commands",
 	}
+	cmd.AddCommand(supportStatusCmd, supportLogsCmd, supportAttachCmd)
+	return cmd
 }
 
 var supportStatusCmd = &cobra.Command{
-	Use:   "support status",
+	Use:   "status",
 	Short: "Show support services status",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {
@@ -78,7 +79,7 @@ var supportStatusCmd = &cobra.Command{
 }
 
 var supportLogsCmd = &cobra.Command{
-	Use:   "support logs [type]",
+	Use:   "logs [type]",
 	Short: "Show support service logs",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -116,7 +117,7 @@ var supportLogsCmd = &cobra.Command{
 }
 
 var supportAttachCmd = &cobra.Command{
-	Use:   "support attach <station>",
+	Use:   "attach <station>",
 	Short: "Attach support to station",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

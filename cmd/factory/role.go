@@ -18,17 +18,18 @@ type Role struct {
 	Skills      []string        `yaml:"skills"`
 }
 
-// getRoleCmds returns role management commands
-func getRoleCmds() []*cobra.Command {
-	return []*cobra.Command{
-		roleListCmd,
-		roleSetCmd,
-		roleClearCmd,
+// getRoleCmd returns the role parent command with all subcommands
+func getRoleCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "role",
+		Short: "Role management commands",
 	}
+	cmd.AddCommand(roleListCmd, roleSetCmd, roleClearCmd)
+	return cmd
 }
 
 var roleListCmd = &cobra.Command{
-	Use:   "role list",
+	Use:   "list",
 	Short: "List available roles",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		rolesDir := filepath.Join(projectPath, "configs", "roles")
@@ -70,7 +71,7 @@ var roleListCmd = &cobra.Command{
 }
 
 var roleSetCmd = &cobra.Command{
-	Use:   "role set <role>",
+	Use:   "set <role>",
 	Short: "Set current operator role",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -110,7 +111,7 @@ var roleSetCmd = &cobra.Command{
 }
 
 var roleClearCmd = &cobra.Command{
-	Use:   "role clear",
+	Use:   "clear",
 	Short: "Clear current role",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		printSuccess("Role cleared")

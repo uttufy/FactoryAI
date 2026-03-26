@@ -7,18 +7,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getOperatorCmds returns operator management commands
-func getOperatorCmds() []*cobra.Command {
-	return []*cobra.Command{
-		operatorSpawnCmd,
-		operatorListCmd,
-		operatorStatusCmd,
-		operatorDecommissionCmd,
+// getOperatorCmd returns the operator parent command with all subcommands
+func getOperatorCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "operator",
+		Short: "Operator management commands",
 	}
+	cmd.AddCommand(operatorSpawnCmd, operatorListCmd, operatorStatusCmd, operatorDecommissionCmd)
+	return cmd
 }
 
 var operatorSpawnCmd = &cobra.Command{
-	Use:   "operator spawn <station>",
+	Use:   "spawn <station>",
 	Short: "Spawn an operator at a station",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -39,7 +39,7 @@ var operatorSpawnCmd = &cobra.Command{
 }
 
 var operatorListCmd = &cobra.Command{
-	Use:   "operator list",
+	Use:   "list",
 	Short: "List all operators",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {
@@ -66,7 +66,7 @@ var operatorListCmd = &cobra.Command{
 }
 
 var operatorStatusCmd = &cobra.Command{
-	Use:   "operator status <id>",
+	Use:   "status <id>",
 	Short: "Show operator status",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -95,7 +95,7 @@ var operatorStatusCmd = &cobra.Command{
 }
 
 var operatorDecommissionCmd = &cobra.Command{
-	Use:   "operator decommission <id>",
+	Use:   "decommission <id>",
 	Short: "Decommission an operator",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

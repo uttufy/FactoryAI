@@ -7,17 +7,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getSOPCmds returns SOP management commands
-func getSOPCmds() []*cobra.Command {
-	return []*cobra.Command{
-		sopListCmd,
-		sopShowCmd,
-		sopExecuteCmd,
+// getSOPCmd returns the sop parent command with all subcommands
+func getSOPCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "sop",
+		Short: "SOP management commands",
 	}
+	cmd.AddCommand(sopListCmd, sopShowCmd, sopExecuteCmd)
+	return cmd
 }
 
 var sopListCmd = &cobra.Command{
-	Use:   "sop list",
+	Use:   "list",
 	Short: "List SOPs",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {
@@ -45,7 +46,7 @@ var sopListCmd = &cobra.Command{
 }
 
 var sopShowCmd = &cobra.Command{
-	Use:   "sop show <id>",
+	Use:   "show <id>",
 	Short: "Show SOP details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -85,7 +86,7 @@ var sopShowCmd = &cobra.Command{
 }
 
 var sopExecuteCmd = &cobra.Command{
-	Use:   "sop execute <id>",
+	Use:   "execute <id>",
 	Short: "Execute an SOP",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

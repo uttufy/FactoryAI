@@ -19,21 +19,28 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	// Add all command groups
-	rootCmd.AddCommand(getFactoryCmds()...)
-	rootCmd.AddCommand(getStationCmds()...)
-	rootCmd.AddCommand(getOperatorCmds()...)
-	rootCmd.AddCommand(getWorkCellCmds()...)
-	rootCmd.AddCommand(getJobCmds()...)
-	rootCmd.AddCommand(getTravelerCmds()...)
-	rootCmd.AddCommand(getBatchCmds()...)
-	rootCmd.AddCommand(getFormulaCmds()...)
-	rootCmd.AddCommand(getSOPCmds()...)
-	rootCmd.AddCommand(getExecutionCmds()...)
-	rootCmd.AddCommand(getSupportCmds()...)
-	rootCmd.AddCommand(getMergeCmds()...)
-	rootCmd.AddCommand(getMailCmds()...)
-	rootCmd.AddCommand(getRoleCmds()...)
+	// Factory management commands are at root level (init, boot, status, etc.)
+	rootCmd.AddCommand(initCmd)
+	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(bootCmd)
+	rootCmd.AddCommand(shutdownCmd)
+	rootCmd.AddCommand(pauseCmd)
+	rootCmd.AddCommand(resumeCmd)
+
+	// Add all parent commands (each with their subcommands)
+	rootCmd.AddCommand(getStationCmd())
+	rootCmd.AddCommand(getOperatorCmd())
+	rootCmd.AddCommand(getWorkCellCmd())
+	rootCmd.AddCommand(getJobCmd())
+	rootCmd.AddCommand(getTravelerCmd())
+	rootCmd.AddCommand(getBatchCmd())
+	rootCmd.AddCommand(getFormulaCmd())
+	rootCmd.AddCommand(getSOPCmd())
+	rootCmd.AddCommand(getExecutionCmd())
+	rootCmd.AddCommand(getSupportCmd())
+	rootCmd.AddCommand(getMergeCmd())
+	rootCmd.AddCommand(getMailCmd())
+	rootCmd.AddCommand(getRoleCmd())
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&configPath, "config", "./configs/factory.yaml", "Path to factory config")

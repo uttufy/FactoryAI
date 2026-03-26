@@ -7,18 +7,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getWorkCellCmds returns work cell management commands
-func getWorkCellCmds() []*cobra.Command {
-	return []*cobra.Command{
-		cellCreateCmd,
-		cellActivateCmd,
-		cellStatusCmd,
-		cellDisperseCmd,
+// getWorkCellCmd returns the work cell parent command with all subcommands
+func getWorkCellCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "cell",
+		Short: "Work cell management commands",
 	}
+	cmd.AddCommand(cellCreateCmd, cellActivateCmd, cellStatusCmd, cellDisperseCmd)
+	return cmd
 }
 
 var cellCreateCmd = &cobra.Command{
-	Use:   "cell create <name> <stations...>",
+	Use:   "create <name> <stations...>",
 	Short: "Create a work cell",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -41,7 +41,7 @@ var cellCreateCmd = &cobra.Command{
 }
 
 var cellActivateCmd = &cobra.Command{
-	Use:   "cell activate <cell-id>",
+	Use:   "activate <cell-id>",
 	Short: "Activate parallel execution",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +61,7 @@ var cellActivateCmd = &cobra.Command{
 }
 
 var cellStatusCmd = &cobra.Command{
-	Use:   "cell status <cell-id>",
+	Use:   "status <cell-id>",
 	Short: "Show cell status",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -86,7 +86,7 @@ var cellStatusCmd = &cobra.Command{
 }
 
 var cellDisperseCmd = &cobra.Command{
-	Use:   "cell disperse <cell-id>",
+	Use:   "disperse <cell-id>",
 	Short: "Disperse cell",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

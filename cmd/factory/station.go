@@ -7,18 +7,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getStationCmds returns station management commands
-func getStationCmds() []*cobra.Command {
-	return []*cobra.Command{
-		stationAddCmd,
-		stationListCmd,
-		stationRemoveCmd,
-		stationStatusCmd,
+// getStationCmd returns the station parent command with all subcommands
+func getStationCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "station",
+		Short: "Station management commands",
 	}
+	cmd.AddCommand(stationAddCmd, stationListCmd, stationRemoveCmd, stationStatusCmd)
+	return cmd
 }
 
 var stationAddCmd = &cobra.Command{
-	Use:   "station add <name>",
+	Use:   "add <name>",
 	Short: "Provision a new station",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -39,7 +39,7 @@ var stationAddCmd = &cobra.Command{
 }
 
 var stationListCmd = &cobra.Command{
-	Use:   "station list",
+	Use:   "list",
 	Short: "List all stations",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {
@@ -66,7 +66,7 @@ var stationListCmd = &cobra.Command{
 }
 
 var stationRemoveCmd = &cobra.Command{
-	Use:   "station remove <id>",
+	Use:   "remove <id>",
 	Short: "Decommission a station",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -86,7 +86,7 @@ var stationRemoveCmd = &cobra.Command{
 }
 
 var stationStatusCmd = &cobra.Command{
-	Use:   "station status <id>",
+	Use:   "status <id>",
 	Short: "Show station status",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

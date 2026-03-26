@@ -7,18 +7,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getBatchCmds returns batch management commands
-func getBatchCmds() []*cobra.Command {
-	return []*cobra.Command{
-		batchCreateCmd,
-		batchStatusCmd,
-		batchListCmd,
-		batchDashboardCmd,
+// getBatchCmd returns the batch parent command with all subcommands
+func getBatchCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "batch",
+		Short: "Batch management commands",
 	}
+	cmd.AddCommand(batchCreateCmd, batchStatusCmd, batchListCmd, batchDashboardCmd)
+	return cmd
 }
 
 var batchCreateCmd = &cobra.Command{
-	Use:   "batch create <name> <jobs...>",
+	Use:   "create <name> <jobs...>",
 	Short: "Create batch",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -39,7 +39,7 @@ var batchCreateCmd = &cobra.Command{
 }
 
 var batchStatusCmd = &cobra.Command{
-	Use:   "batch status <id>",
+	Use:   "status <id>",
 	Short: "Show batch status",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -64,7 +64,7 @@ var batchStatusCmd = &cobra.Command{
 }
 
 var batchListCmd = &cobra.Command{
-	Use:   "batch list",
+	Use:   "list",
 	Short: "List batches",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {
@@ -91,7 +91,7 @@ var batchListCmd = &cobra.Command{
 }
 
 var batchDashboardCmd = &cobra.Command{
-	Use:   "batch dashboard",
+	Use:   "dashboard",
 	Short: "Show batch dashboard (TUI)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireBoot(); err != nil {

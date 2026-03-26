@@ -9,13 +9,14 @@ import (
 	"github.com/uttufy/FactoryAI/internal/workflow"
 )
 
-// getExecutionCmds returns execution commands
-func getExecutionCmds() []*cobra.Command {
-	return []*cobra.Command{
-		runCmd,
-		dispatchCmd,
-		planCmd,
+// getExecutionCmd returns execution commands
+func getExecutionCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "execution",
+		Short: "Execution commands",
 	}
+	cmd.AddCommand(runCmd, dispatchCmd, planCmd)
+	return cmd
 }
 
 var runCmd = &cobra.Command{

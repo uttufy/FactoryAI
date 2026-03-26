@@ -9,18 +9,18 @@ import (
 	"github.com/uttufy/FactoryAI/internal/workflow"
 )
 
-// getFormulaCmds returns formula management commands
-func getFormulaCmds() []*cobra.Command {
-	return []*cobra.Command{
-		formulaCreateCmd,
-		formulaListCmd,
-		formulaShowCmd,
-		formulaValidateCmd,
+// getFormulaCmd returns the formula parent command with all subcommands
+func getFormulaCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "formula",
+		Short: "Formula management commands",
 	}
+	cmd.AddCommand(formulaCreateCmd, formulaListCmd, formulaShowCmd, formulaValidateCmd)
+	return cmd
 }
 
 var formulaCreateCmd = &cobra.Command{
-	Use:   "formula create <name>",
+	Use:   "create <name>",
 	Short: "Create a formula (SOP template)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -62,7 +62,7 @@ acceptance = "Acceptance criteria for step 2"
 }
 
 var formulaListCmd = &cobra.Command{
-	Use:   "formula list",
+	Use:   "list",
 	Short: "List formulas",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		formulasDir := filepath.Join(projectPath, "formulas")
@@ -92,7 +92,7 @@ var formulaListCmd = &cobra.Command{
 }
 
 var formulaShowCmd = &cobra.Command{
-	Use:   "formula show <file>",
+	Use:   "show <file>",
 	Short: "Show formula details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -137,7 +137,7 @@ var formulaShowCmd = &cobra.Command{
 }
 
 var formulaValidateCmd = &cobra.Command{
-	Use:   "formula validate <file>",
+	Use:   "validate <file>",
 	Short: "Validate formula TOML",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

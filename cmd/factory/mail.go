@@ -8,17 +8,18 @@ import (
 	"github.com/uttufy/FactoryAI/internal/beads"
 )
 
-// getMailCmds returns mail/communication commands
-func getMailCmds() []*cobra.Command {
-	return []*cobra.Command{
-		mailSendCmd,
-		mailBroadcastCmd,
-		mailListCmd,
+// getMailCmd returns the mail parent command with all subcommands
+func getMailCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "mail",
+		Short: "Mail/communication commands",
 	}
+	cmd.AddCommand(mailSendCmd, mailBroadcastCmd, mailListCmd)
+	return cmd
 }
 
 var mailSendCmd = &cobra.Command{
-	Use:   "mail send <to> <subject> <body>",
+	Use:   "send <to> <subject> <body>",
 	Short: "Send a message",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -54,7 +55,7 @@ var mailSendCmd = &cobra.Command{
 }
 
 var mailBroadcastCmd = &cobra.Command{
-	Use:   "mail broadcast <subject> <body>",
+	Use:   "broadcast <subject> <body>",
 	Short: "Broadcast to all stations",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,7 +81,7 @@ var mailBroadcastCmd = &cobra.Command{
 }
 
 var mailListCmd = &cobra.Command{
-	Use:   "mail list [station]",
+	Use:   "list [station]",
 	Short: "List messages",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

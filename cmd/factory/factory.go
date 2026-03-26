@@ -26,18 +26,6 @@ import (
 	"github.com/uttufy/FactoryAI/internal/workflow"
 )
 
-// getFactoryCmds returns factory management commands
-func getFactoryCmds() []*cobra.Command {
-	return []*cobra.Command{
-		initCmd,
-		statusCmd,
-		bootCmd,
-		shutdownCmd,
-		pauseCmd,
-		resumeCmd,
-	}
-}
-
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Initialize a new factory",

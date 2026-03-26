@@ -7,17 +7,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// getTravelerCmds returns traveler management commands
-func getTravelerCmds() []*cobra.Command {
-	return []*cobra.Command{
-		travelerAttachCmd,
-		travelerShowCmd,
-		travelerClearCmd,
+// getTravelerCmd returns the traveler parent command with all subcommands
+func getTravelerCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "traveler",
+		Short: "Traveler management commands",
 	}
+	cmd.AddCommand(travelerAttachCmd, travelerShowCmd, travelerClearCmd)
+	return cmd
 }
 
 var travelerAttachCmd = &cobra.Command{
-	Use:   "traveler attach <station> <job>",
+	Use:   "attach <station> <job>",
 	Short: "Attach work to station",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -38,7 +39,7 @@ var travelerAttachCmd = &cobra.Command{
 }
 
 var travelerShowCmd = &cobra.Command{
-	Use:   "traveler show <station>",
+	Use:   "show <station>",
 	Short: "Show station's traveler",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -63,7 +64,7 @@ var travelerShowCmd = &cobra.Command{
 }
 
 var travelerClearCmd = &cobra.Command{
-	Use:   "traveler clear <station>",
+	Use:   "clear <station>",
 	Short: "Clear station's traveler",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
