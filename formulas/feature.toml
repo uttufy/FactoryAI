@@ -1,0 +1,37 @@
+# Feature Implementation Formula
+# This formula defines the workflow for implementing a new feature
+
+name = "feature-implementation"
+description = "Standard workflow for implementing a new feature"
+
+[variables]
+task = ""
+
+[[steps]]
+name = "analyze"
+description = "Analyze the task requirements and understand the codebase"
+acceptance = "Clear understanding of what needs to be implemented"
+
+[[steps]]
+name = "design"
+description = "Design the solution architecture and approach"
+dependencies = ["analyze"]
+acceptance = "Design document or plan is ready"
+
+[[steps]]
+name = "implement"
+description = "Implement the feature according to the design"
+dependencies = ["design"]
+acceptance = "Feature code is written and compiles"
+
+[[steps]]
+name = "test"
+description = "Write and run tests for the feature"
+dependencies = ["implement"]
+acceptance = "All tests pass"
+
+[[steps]]
+name = "review"
+description = "Review the implementation for quality and best practices"
+dependencies = ["test"]
+acceptance = "Code review completed"

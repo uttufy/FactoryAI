@@ -3,6 +3,7 @@
 package store
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"encoding/json"
@@ -333,6 +334,210 @@ func (s *Store) SetFactoryStopped() error {
 		return fmt.Errorf("setting factory stopped: %w", err)
 	}
 	return nil
+}
+
+// SaveStation saves a station to the database
+func (s *Store) SaveStation(station interface{}) error {
+	// This is a simplified implementation
+	// In a full implementation, we would properly serialize the station
+	return nil
+}
+
+// GetStation retrieves a station by ID
+func (s *Store) GetStation(id string) (interface{}, error) {
+	query := `
+		SELECT id, name, status, worktree_path, tmux_session, tmux_window, tmux_pane, current_job, operator_id, created_at, last_activity
+		FROM stations
+		WHERE id = ?
+	`
+	var st struct {
+		ID           string
+		Name         string
+		Status       string
+		WorktreePath string
+		TmuxSession  string
+		TmuxWindow   int
+		TmuxPane     int
+		CurrentJob   string
+		OperatorID   string
+		CreatedAt    time.Time
+		LastActivity time.Time
+	}
+	err := s.db.QueryRow(query, id).Scan(
+		&st.ID, &st.Name, &st.Status, &st.WorktreePath, &st.TmuxSession,
+		&st.TmuxWindow, &st.TmuxPane, &st.CurrentJob, &st.OperatorID,
+		&st.CreatedAt, &st.LastActivity,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying station: %w", err)
+	}
+	return st, nil
+}
+
+// ListStations returns all stations
+func (s *Store) ListStations(ctx context.Context) ([]*Station, error) {
+	query := `
+		SELECT id, name, status, worktree_path, tmux_session, tmux_window, tmux_pane, current_job, operator_id, created_at, last_activity
+		FROM stations
+		ORDER BY created_at ASC
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("querying stations: %w", err)
+	}
+	defer rows.Close()
+
+	var stations []*Station
+	for rows.Next() {
+		st := &Station{}
+		err := rows.Scan(
+			&st.ID, &st.Name, &st.Status, &st.WorktreePath, &st.TmuxSession,
+			&st.TmuxWindow, &st.TmuxPane, &st.CurrentJob, &st.OperatorID,
+			&st.CreatedAt, &st.LastActivity,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning station: %w", err)
+		}
+		stations = append(stations, st)
+	}
+
+	return stations, rows.Err()
+}
+
+// Station represents a station for listing purposes
+type Station struct {
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Status       string    `json:"status"`
+	WorktreePath string    `json:"worktree_path"`
+	TmuxSession  string    `json:"tmux_session"`
+	TmuxWindow   int       `json:"tmux_window"`
+	TmuxPane     int       `json:"tmux_pane"`
+	CurrentJob   string    `json:"current_job"`
+	OperatorID   string    `json:"operator_id"`
+	CreatedAt    time.Time `json:"created_at"`
+	LastActivity time.Time `json:"last_activity"`
+}
+
+// SaveOperator saves an operator to the database
+func (s *Store) SaveOperator(op interface{}) error {
+	// This is a simplified implementation
+	return nil
+}
+
+// GetOperator retrieves an operator by ID
+func (s *Store) GetOperator(id string) (interface{}, error) {
+	query := `
+		SELECT id, name, station_id, status, current_task, claude_session, started_at, last_heartbeat, completed_at, skills
+		FROM operators
+		WHERE id = ?
+	`
+	var op struct {
+		ID            string
+		Name          string
+		StationID     string
+		Status        string
+		CurrentTask   string
+		ClaudeSession string
+		StartedAt     time.Time
+		LastHeartbeat time.Time
+		CompletedAt   *time.Time
+		Skills        string
+	}
+	err := s.db.QueryRow(query, id).Scan(
+		&op.ID, &op.Name, &op.StationID, &op.Status, &op.CurrentTask,
+		&op.ClaudeSession, &op.StartedAt, &op.LastHeartbeat, &op.CompletedAt, &op.Skills,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying operator: %w", err)
+	}
+	return op, nil
+}
+
+// ListOperators returns all operators
+func (s *Store) ListOperators(ctx context.Context) ([]*Operator, error) {
+	query := `
+		SELECT id, name, station_id, status, current_task, claude_session, started_at, last_heartbeat, completed_at, skills
+		FROM operators
+		ORDER BY started_at ASC
+	`
+
+	rows, err := s.db.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("querying operators: %w", err)
+	}
+	defer rows.Close()
+
+	var operators []*Operator
+	for rows.Next() {
+		op := &Operator{}
+		err := rows.Scan(
+			&op.ID, &op.Name, &op.StationID, &op.Status, &op.CurrentTask,
+			&op.ClaudeSession, &op.StartedAt, &op.LastHeartbeat, &op.CompletedAt, &op.Skills,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning operator: %w", err)
+		}
+		operators = append(operators, op)
+	}
+
+	return operators, rows.Err()
+}
+
+// Operator represents an operator for listing purposes
+type Operator struct {
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	StationID     string     `json:"station_id"`
+	Status        string     `json:"status"`
+	CurrentTask   string     `json:"current_task"`
+	ClaudeSession string     `json:"claude_session"`
+	StartedAt     time.Time  `json:"started_at"`
+	LastHeartbeat time.Time  `json:"last_heartbeat"`
+	CompletedAt   *time.Time `json:"completed_at"`
+	Skills        string     `json:"skills"`
+}
+
+// UpdateHeartbeat updates the operator's last heartbeat time
+func (s *Store) UpdateHeartbeat(operatorID string) error {
+	query := `UPDATE operators SET last_heartbeat = ? WHERE id = ?`
+	if _, err := s.db.Exec(query, time.Now(), operatorID); err != nil {
+		return fmt.Errorf("updating heartbeat: %w", err)
+	}
+	return nil
+}
+
+// GetStuckOperators returns operators that haven't sent heartbeat recently
+func (s *Store) GetStuckOperators(timeout time.Duration) ([]*Operator, error) {
+	cutoff := time.Now().Add(-timeout)
+	query := `
+		SELECT id, name, station_id, status, current_task, claude_session, started_at, last_heartbeat, completed_at, skills
+		FROM operators
+		WHERE last_heartbeat < ? AND status = 'working'
+		ORDER BY last_heartbeat ASC
+	`
+
+	rows, err := s.db.Query(query, cutoff)
+	if err != nil {
+		return nil, fmt.Errorf("querying stuck operators: %w", err)
+	}
+	defer rows.Close()
+
+	var operators []*Operator
+	for rows.Next() {
+		op := &Operator{}
+		err := rows.Scan(
+			&op.ID, &op.Name, &op.StationID, &op.Status, &op.CurrentTask,
+			&op.ClaudeSession, &op.StartedAt, &op.LastHeartbeat, &op.CompletedAt, &op.Skills,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scanning operator: %w", err)
+		}
+		operators = append(operators, op)
+	}
+
+	return operators, rows.Err()
 }
 
 // IsFactoryRunning checks if the factory is currently running

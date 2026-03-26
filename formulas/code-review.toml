@@ -1,0 +1,31 @@
+# Code Review Formula
+# This formula defines the workflow for reviewing code
+
+name = "code-review"
+description = "Standard workflow for reviewing code changes"
+
+[variables]
+task = ""
+
+[[steps]]
+name = "checkout"
+description = "Checkout the code changes to review"
+acceptance = "Code is checked out and ready to review"
+
+[[steps]]
+name = "analyze"
+description = "Analyze the code changes for correctness and quality"
+dependencies = ["checkout"]
+acceptance = "Code changes are understood"
+
+[[steps]]
+name = "feedback"
+description = "Provide feedback on the code changes"
+dependencies = ["analyze"]
+acceptance = "Feedback provided"
+
+[[steps]]
+name = "approve"
+description = "Approve or request changes"
+dependencies = ["feedback"]
+acceptance = "Review completed with decision"

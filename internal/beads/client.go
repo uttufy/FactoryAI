@@ -368,3 +368,53 @@ func (c *Client) Route(prefix string) (*Client, error) {
 		workingDir: c.workingDir,
 	}, nil
 }
+
+// CreateBatch creates a new production batch
+func (c *Client) CreateBatch(name string, jobIDs []string) (*Batch, error) {
+	args := []string{"batch", "create", "--name", name}
+	for _, id := range jobIDs {
+		args = append(args, "--job", id)
+	}
+
+	output, err := c.Execute(args...)
+	if err != nil {
+		return nil, fmt.Errorf("creating batch: %w", err)
+	}
+
+	var batch Batch
+	if err := json.Unmarshal([]byte(output), &batch); err != nil {
+		return nil, fmt.Errorf("parsing batch: %w", err)
+	}
+
+	return &batch, nil
+}
+
+// GetBatch retrieves a batch by ID
+func (c *Client) GetBatch(id string) (*Batch, error) {
+	output, err := c.Execute("batch", "get", id)
+	if err != nil {
+		return nil, fmt.Errorf("getting batch: %w", err)
+	}
+
+	var batch Batch
+	if err := json.Unmarshal([]byte(output), &batch); err != nil {
+		return nil, fmt.Errorf("parsing batch: %w", err)
+	}
+
+	return &batch, nil
+}
+
+// ListBatches lists all batches
+func (c *Client) ListBatches() ([]*Batch, error) {
+	output, err := c.Execute("batch", "list")
+	if err != nil {
+		return nil, fmt.Errorf("listing batches: %w", err)
+	}
+
+	var batches []*Batch
+	if err := json.Unmarshal([]byte(output), &batches); err != nil {
+		return nil, fmt.Errorf("parsing batches: %w", err)
+	}
+
+	return batches, nil
+}

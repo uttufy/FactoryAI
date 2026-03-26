@@ -4,6 +4,9 @@ package workflow
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,32 +18,32 @@ import (
 type StepStatus string
 
 const (
-	StepPending    StepStatus = "pending"
-	StepQueued     StepStatus = "queued"      // Ready to run (deps met)
-	StepRunning    StepStatus = "running"
-	StepWaiting    StepStatus = "waiting"     // Waiting for deps
-	StepDone       StepStatus = "done"
-	StepFailed     StepStatus = "failed"
-	StepSkipped    StepStatus = "skipped"
+	StepPending StepStatus = "pending"
+	StepQueued  StepStatus = "queued" // Ready to run (deps met)
+	StepRunning StepStatus = "running"
+	StepWaiting StepStatus = "waiting" // Waiting for deps
+	StepDone    StepStatus = "done"
+	StepFailed  StepStatus = "failed"
+	StepSkipped StepStatus = "skipped"
 )
 
 // Step represents a single operation in a workflow
 type Step struct {
-	ID           string       `json:"id"`
-	Name         string       `json:"name"`
-	Description  string       `json:"description,omitempty"`
-	Assignee     string       `json:"assignee,omitempty"`     // Preferred station type
-	Dependencies []string     `json:"dependencies,omitempty"` // Step IDs this depends on
-	Status       StepStatus   `json:"status"`
-	Acceptance   string       `json:"acceptance,omitempty"`   // Acceptance criteria
-	Gate         string       `json:"gate,omitempty"`         // Must pass before proceeding
-	Timeout      int          `json:"timeout,omitempty"`      // Seconds
-	MaxRetries   int          `json:"max_retries,omitempty"`
-	Retries      int          `json:"retries"`
-	StartedAt    *time.Time   `json:"started_at,omitempty"`
-	CompletedAt  *time.Time   `json:"completed_at,omitempty"`
-	Result       string       `json:"result,omitempty"`
-	Error        string       `json:"error,omitempty"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	Description  string     `json:"description,omitempty"`
+	Assignee     string     `json:"assignee,omitempty"`     // Preferred station type
+	Dependencies []string   `json:"dependencies,omitempty"` // Step IDs this depends on
+	Status       StepStatus `json:"status"`
+	Acceptance   string     `json:"acceptance,omitempty"` // Acceptance criteria
+	Gate         string     `json:"gate,omitempty"`       // Must pass before proceeding
+	Timeout      int        `json:"timeout,omitempty"`    // Seconds
+	MaxRetries   int        `json:"max_retries,omitempty"`
+	Retries      int        `json:"retries"`
+	StartedAt    *time.Time `json:"started_at,omitempty"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+	Result       string     `json:"result,omitempty"`
+	Error        string     `json:"error,omitempty"`
 }
 
 // SOPStatus represents the status of a Standard Operating Procedure
@@ -56,15 +59,15 @@ const (
 
 // SOP (Standard Operating Procedure) represents a workflow
 type SOP struct {
-	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description,omitempty"`
-	Steps       []*Step     `json:"steps"`
-	Status      SOPStatus   `json:"status"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
-	CompletedAt *time.Time  `json:"completed_at,omitempty"`
-	IsWisp      bool        `json:"is_wisp,omitempty"`
+	ID          string     `json:"id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description,omitempty"`
+	Steps       []*Step    `json:"steps"`
+	Status      SOPStatus  `json:"status"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	IsWisp      bool       `json:"is_wisp,omitempty"`
 }
 
 // DAGEngine evaluates dependencies and determines what can run
@@ -190,8 +193,8 @@ func (e *DAGEngine) QueueReady(sopID string) error {
 	for _, step := range readySteps {
 		step.Status = StepQueued
 		e.events.Emit(events.EventStepQueued, "dag_engine", step.ID, map[string]interface{}{
-			"sop_id":   sopID,
-			"step_id":  step.ID,
+			"sop_id":    sopID,
+			"step_id":   step.ID,
 			"step_name": step.Name,
 		})
 	}
@@ -520,4 +523,87 @@ func (e *DAGEngine) ListSOPs() []*SOP {
 	}
 
 	return sops
+}
+
+// FormulaInfo represents formula information for listing
+type FormulaInfo struct {
+	Name  string
+	Path  string
+	Steps []FormulaStep
+}
+
+// ListFormulas returns all formulas in the formulas directory
+func (e *DAGEngine) ListFormulas() ([]*FormulaInfo, error) {
+	// Check if formulas directory exists
+	formulasDir := "formulas"
+	if _, err := os.Stat(formulasDir); os.IsNotExist(err) {
+		return []*FormulaInfo{}, nil
+	}
+
+	// Read directory
+	entries, err := os.ReadDir(formulasDir)
+	if err != nil {
+		return nil, fmt.Errorf("reading formulas directory: %w", err)
+	}
+
+	var formulas []*FormulaInfo
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		// Only process .toml files
+		if !strings.HasSuffix(entry.Name(), ".toml") {
+			continue
+		}
+
+		path := filepath.Join(formulasDir, entry.Name())
+		formula, err := LoadFormula(path)
+		if err != nil {
+			continue // Skip invalid formulas
+		}
+
+		formulas = append(formulas, &FormulaInfo{
+			Name:  formula.Name,
+			Path:  path,
+			Steps: formula.Steps,
+		})
+	}
+
+	return formulas, nil
+}
+
+// LoadFormula loads a formula from the given path
+func (e *DAGEngine) LoadFormula(path string) (*Formula, error) {
+	return LoadFormula(path)
+}
+
+// CookFormula cooks a formula into an SOP
+func (e *DAGEngine) CookFormula(path string, vars map[string]string) (*SOP, error) {
+	formula, err := LoadFormula(path)
+	if err != nil {
+		return nil, fmt.Errorf("loading formula: %w", err)
+	}
+
+	if err := formula.Validate(); err != nil {
+		return nil, fmt.Errorf("validating formula: %w", err)
+	}
+
+	protomolecule, err := formula.CookWithVars(vars)
+	if err != nil {
+		return nil, fmt.Errorf("cooking formula: %w", err)
+	}
+
+	sop, err := protomolecule.Instantiate(vars)
+	if err != nil {
+		return nil, fmt.Errorf("instantiating SOP: %w", err)
+	}
+
+	// Register the SOP with the engine
+	createdSOP, err := e.CreateSOP(sop.Name, sop.Steps)
+	if err != nil {
+		return nil, fmt.Errorf("creating SOP: %w", err)
+	}
+
+	return createdSOP, nil
 }

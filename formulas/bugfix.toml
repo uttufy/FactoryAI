@@ -1,0 +1,31 @@
+# Bug Fix Formula
+# This formula defines the workflow for fixing a bug
+
+name = "bug-fix"
+description = "Standard workflow for fixing a bug"
+
+[variables]
+task = ""
+
+[[steps]]
+name = "reproduce"
+description = "Reproduce the bug and understand the issue"
+acceptance = "Bug is reproducible and understood"
+
+[[steps]]
+name = "locate"
+description = "Locate the source of the bug in the codebase"
+dependencies = ["reproduce"]
+acceptance = "Bug source identified"
+
+[[steps]]
+name = "fix"
+description = "Implement the fix for the bug"
+dependencies = ["locate"]
+acceptance = "Bug is fixed"
+
+[[steps]]
+name = "verify"
+description = "Verify the fix works and doesn't break other functionality"
+dependencies = ["fix"]
+acceptance = "Fix verified and no regressions"

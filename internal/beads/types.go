@@ -28,7 +28,7 @@ type BeadStatus string
 const (
 	StatusPending    BeadStatus = "pending"
 	StatusInProgress BeadStatus = "in_progress"
-	StatusBlocked    BeadStatus = "blocked"   // Waiting on dependency
+	StatusBlocked    BeadStatus = "blocked" // Waiting on dependency
 	StatusDone       BeadStatus = "done"
 	StatusFailed     BeadStatus = "failed"
 	StatusCancelled  BeadStatus = "cancelled"
@@ -44,25 +44,25 @@ const (
 
 // Bead is the core work item in FactoryAI
 type Bead struct {
-	ID             string                 `json:"id"`
-	Type           BeadType               `json:"type"`
-	Title          string                 `json:"title"`
-	Description    string                 `json:"description,omitempty"`
-	Status         BeadStatus             `json:"status"`
-	Persistence    BeadPersistence        `json:"persistence"`
-	Assignee       string                 `json:"assignee,omitempty"`
-	StationID      string                 `json:"station_id,omitempty"`
-	ParentID       string                 `json:"parent_id,omitempty"`
-	Dependencies   []string               `json:"dependencies,omitempty"`
-	CreatedAt      string                 `json:"created_at"`
-	UpdatedAt      string                 `json:"updated_at"`
-	CompletedAt    *string                `json:"completed_at,omitempty"`
-	BurnedAt       *string                `json:"burned_at,omitempty"`
-	Labels         []string               `json:"labels,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
-	Result         string                 `json:"result,omitempty"`
-	Error          string                 `json:"error,omitempty"`
-	Pinned         bool                   `json:"pinned,omitempty"`
+	ID           string                 `json:"id"`
+	Type         BeadType               `json:"type"`
+	Title        string                 `json:"title"`
+	Description  string                 `json:"description,omitempty"`
+	Status       BeadStatus             `json:"status"`
+	Persistence  BeadPersistence        `json:"persistence"`
+	Assignee     string                 `json:"assignee,omitempty"`
+	StationID    string                 `json:"station_id,omitempty"`
+	ParentID     string                 `json:"parent_id,omitempty"`
+	Dependencies []string               `json:"dependencies,omitempty"`
+	CreatedAt    string                 `json:"created_at"`
+	UpdatedAt    string                 `json:"updated_at"`
+	CompletedAt  *string                `json:"completed_at,omitempty"`
+	BurnedAt     *string                `json:"burned_at,omitempty"`
+	Labels       []string               `json:"labels,omitempty"`
+	Metadata     map[string]interface{} `json:"metadata,omitempty"`
+	Result       string                 `json:"result,omitempty"`
+	Error        string                 `json:"error,omitempty"`
+	Pinned       bool                   `json:"pinned,omitempty"`
 }
 
 // BeadFilter is used to filter beads when listing
@@ -107,21 +107,21 @@ type Step struct {
 
 // Traveler represents a work order document that moves through stations
 type Traveler struct {
-	ID           string       `json:"id"`
-	StationID    string       `json:"station_id"`
-	BeadID       string       `json:"bead_id"`
-	SOPID        string       `json:"sop_id,omitempty"` // Attached molecule/SOP
-	Priority     int          `json:"priority"`
+	ID           string         `json:"id"`
+	StationID    string         `json:"station_id"`
+	BeadID       string         `json:"bead_id"`
+	SOPID        string         `json:"sop_id,omitempty"` // Attached molecule/SOP
+	Priority     int            `json:"priority"`
 	Status       TravelerStatus `json:"status"`
-	Deferred     bool         `json:"deferred"`
-	Restart      bool         `json:"restart"`
-	ReworkCount  int          `json:"rework_count"`    // Times sent back for rework
-	ReworkReason string       `json:"rework_reason,omitempty"`
-	AttachedAt   time.Time    `json:"attached_at"`
-	StartedAt    *time.Time   `json:"started_at,omitempty"`
-	CompletedAt  *time.Time   `json:"completed_at,omitempty"`
-	Result       string       `json:"result,omitempty"`
-	Error        string       `json:"error,omitempty"`
+	Deferred     bool           `json:"deferred"`
+	Restart      bool           `json:"restart"`
+	ReworkCount  int            `json:"rework_count"` // Times sent back for rework
+	ReworkReason string         `json:"rework_reason,omitempty"`
+	AttachedAt   time.Time      `json:"attached_at"`
+	StartedAt    *time.Time     `json:"started_at,omitempty"`
+	CompletedAt  *time.Time     `json:"completed_at,omitempty"`
+	Result       string         `json:"result,omitempty"`
+	Error        string         `json:"error,omitempty"`
 }
 
 // TravelerStatus represents the status of a traveler
@@ -138,15 +138,15 @@ const (
 
 // Message represents mail sent between stations/agents
 type Message struct {
-	ID        string       `json:"id"`
-	From      string       `json:"from"`
-	To        string       `json:"to"`
-	Subject   string       `json:"subject"`
-	Body      string       `json:"body"`
-	Type      MessageType  `json:"type"`
-	Priority  int          `json:"priority"`
-	Timestamp time.Time    `json:"timestamp"`
-	Read      bool         `json:"read"`
+	ID        string      `json:"id"`
+	From      string      `json:"from"`
+	To        string      `json:"to"`
+	Subject   string      `json:"subject"`
+	Body      string      `json:"body"`
+	Type      MessageType `json:"type"`
+	Priority  int         `json:"priority"`
+	Timestamp time.Time   `json:"timestamp"`
+	Read      bool        `json:"read"`
 }
 
 // MessageType represents the type of message
@@ -159,6 +159,31 @@ const (
 	MsgReply    MessageType = "reply"
 	MsgSystem   MessageType = "system"
 )
+
+// BatchStatus represents the status of a production batch
+type BatchStatus string
+
+const (
+	BatchStaging  BatchStatus = "staging"
+	BatchRunning  BatchStatus = "running"
+	BatchComplete BatchStatus = "complete"
+	BatchFailed   BatchStatus = "failed"
+	BatchPartial  BatchStatus = "partial" // Some completed, some failed
+)
+
+// Batch represents a production batch - a group of related work items
+type Batch struct {
+	ID            string      `json:"id"`
+	Name          string      `json:"name"`
+	Description   string      `json:"description,omitempty"`
+	Status        BatchStatus `json:"status"`
+	TotalJobs     int         `json:"total_jobs"`
+	CompletedJobs int         `json:"completed_jobs"`
+	FailedJobs    int         `json:"failed_jobs"`
+	CreatedAt     time.Time   `json:"created_at"`
+	CompletedAt   *time.Time  `json:"completed_at,omitempty"`
+	Result        string      `json:"result,omitempty"`
+}
 
 // AttachOption is a function that configures a traveler attachment
 type AttachOption func(*Traveler)
