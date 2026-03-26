@@ -273,17 +273,20 @@ func bootFactory() error {
 	}
 
 	// Check if factory is already running (check PID file)
+	// Skip this check if we're the detached child process
 	pidFile := getPIDFilePath(absPath)
-	if pidData, err := os.ReadFile(pidFile); err == nil {
-		// PID file exists, check if process is running
-		var pid int
-		if _, err := fmt.Sscanf(string(pidData), "%d", &pid); err == nil {
-			if isProcessRunning(pid) {
-				return fmt.Errorf("factory is already running (PID %d). Run 'factory shutdown' first", pid)
+	if os.Getenv("FACTORY_DETACHED") == "" {
+		if pidData, err := os.ReadFile(pidFile); err == nil {
+			// PID file exists, check if process is running
+			var pid int
+			if _, err := fmt.Sscanf(string(pidData), "%d", &pid); err == nil {
+				if isProcessRunning(pid) {
+					return fmt.Errorf("factory is already running (PID %d). Run 'factory shutdown' first", pid)
+				}
 			}
+			// Stale PID file, remove it
+			os.Remove(pidFile)
 		}
-		// Stale PID file, remove it
-		os.Remove(pidFile)
 	}
 
 	// Load config
@@ -378,6 +381,7 @@ func bootDetached(cfg *config.Config, absPath string) error {
 	cmd.Stdout = logF
 	cmd.Stderr = logF
 	cmd.Stdin = nil
+	cmd.Env = append(os.Environ(), "FACTORY_DETACHED=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setsid: true, // Create new session to detach from terminal
 	}
