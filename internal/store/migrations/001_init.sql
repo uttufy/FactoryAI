@@ -128,3 +128,17 @@ CREATE TABLE IF NOT EXISTS merge_requests (
 );
 
 CREATE INDEX IF NOT EXISTS idx_mr_status ON merge_requests(status);
+
+-- Factory status table for process-isolated state management
+-- This table enables cross-process state tracking since each CLI command
+-- runs as a separate process with isolated memory
+CREATE TABLE IF NOT EXISTS factory_status (
+    id INTEGER PRIMARY KEY CHECK (id = 1),  -- Singleton row
+    running INTEGER NOT NULL DEFAULT 0,
+    pid INTEGER,
+    started_at DATETIME,
+    boot_status TEXT NOT NULL DEFAULT 'stopped'  -- 'booting', 'running', 'shutting_down', 'stopped'
+);
+
+-- Initialize factory status row
+INSERT OR IGNORE INTO factory_status (id, running, boot_status) VALUES (1, 0, 'stopped');

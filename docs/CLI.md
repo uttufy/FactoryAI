@@ -44,7 +44,7 @@ Creates:
 
 ### `factory boot`
 
-Start the factory and all services.
+Start the factory and all services. This is a **persistent service** that runs continuously.
 
 ```bash
 factory boot [flags]
@@ -53,7 +53,23 @@ Flags:
   --max-stations int   Maximum number of stations (default: 5)
 ```
 
-Initializes:
+**Running Options:**
+
+```bash
+# Option 1: Run in background (recommended)
+factory boot &
+sleep 2  # Wait for initialization
+
+# Option 2: Run in foreground (Ctrl+C to stop)
+factory boot
+
+# Option 3: Run in tmux
+tmux new-session -s factory
+factory boot
+# Detach: Ctrl+B then D
+```
+
+**Initializes:**
 - Event bus (Andon Board)
 - Station manager
 - Operator pool
@@ -64,6 +80,8 @@ Initializes:
 - Assembly (merge queue)
 - Mail system
 - Director
+
+**Note:** The command will not exit on its own. Use `factory shutdown` to stop a background factory, or `Ctrl+C` for foreground.
 
 ### `factory status`
 
@@ -81,11 +99,18 @@ Output:
 
 ### `factory shutdown`
 
-Gracefully shutdown the factory.
+Gracefully shutdown the factory. Works even if factory was started in background or crashed during boot.
 
 ```bash
 factory shutdown
 ```
+
+This command:
+- Stops accepting new work
+- Completes in-progress work
+- Saves state to database
+- Cleans up resources
+- Removes the boot status file
 
 ### `factory pause` / `factory resume`
 

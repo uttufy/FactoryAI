@@ -120,12 +120,14 @@ func (d *Director) Start(ctx context.Context) error {
 }
 
 // Stop gracefully shuts down the factory
+// This method is idempotent - calling it multiple times is safe
 func (d *Director) Stop() error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
 	if !d.running {
-		return fmt.Errorf("factory not running")
+		// Already stopped, not an error (idempotent)
+		return nil
 	}
 
 	d.running = false

@@ -7,6 +7,8 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"os"
+	"syscall"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -255,4 +257,114 @@ func (s *Store) ClearDeadLetter() error {
 		return fmt.Errorf("clearing dead letter: %w", err)
 	}
 	return nil
+}
+
+// FactoryStatus represents the persistent factory state
+type FactoryStatus struct {
+	Running    bool
+	PID        int64
+	StartedAt  time.Time
+	BootStatus string
+}
+
+// GetFactoryStatus retrieves the current factory status from database
+func (s *Store) GetFactoryStatus() (*FactoryStatus, error) {
+	query := `
+		SELECT running, pid, started_at, boot_status
+		FROM factory_status
+		WHERE id = 1
+	`
+
+	var status FactoryStatus
+	var running int
+	var pid sql.NullInt64
+	var startedAt sql.NullTime
+
+	err := s.db.QueryRow(query).Scan(&running, &pid, &startedAt, &status.BootStatus)
+	if err != nil {
+		return nil, fmt.Errorf("querying factory status: %w", err)
+	}
+
+	status.Running = running == 1
+	if pid.Valid {
+		status.PID = pid.Int64
+	}
+	if startedAt.Valid {
+		status.StartedAt = startedAt.Time
+	}
+
+	return &status, nil
+}
+
+// SetFactoryBooting marks the factory as booting in the database
+func (s *Store) SetFactoryBooting(pid int) error {
+	query := `
+		UPDATE factory_status
+		SET running = 0, pid = ?, started_at = ?, boot_status = 'booting'
+		WHERE id = 1
+	`
+	if _, err := s.db.Exec(query, pid, time.Now()); err != nil {
+		return fmt.Errorf("setting factory booting: %w", err)
+	}
+	return nil
+}
+
+// SetFactoryRunning marks the factory as running in the database
+func (s *Store) SetFactoryRunning(pid int) error {
+	query := `
+		UPDATE factory_status
+		SET running = 1, pid = ?, started_at = ?, boot_status = 'running'
+		WHERE id = 1
+	`
+	if _, err := s.db.Exec(query, pid, time.Now()); err != nil {
+		return fmt.Errorf("setting factory running: %w", err)
+	}
+	return nil
+}
+
+// SetFactoryStopped marks the factory as stopped in the database
+func (s *Store) SetFactoryStopped() error {
+	query := `
+		UPDATE factory_status
+		SET running = 0, pid = NULL, started_at = NULL, boot_status = 'stopped'
+		WHERE id = 1
+	`
+	if _, err := s.db.Exec(query); err != nil {
+		return fmt.Errorf("setting factory stopped: %w", err)
+	}
+	return nil
+}
+
+// IsFactoryRunning checks if the factory is currently running
+// Also performs PID validation to detect stale state from crashed processes
+func (s *Store) IsFactoryRunning() (bool, error) {
+	status, err := s.GetFactoryStatus()
+	if err != nil {
+		return false, err
+	}
+
+	if !status.Running {
+		return false, nil
+	}
+
+	// If PID is set, verify the process is still alive
+	if status.PID > 0 {
+		// Check if process with this PID exists
+		// On Unix, sending signal 0 checks process existence without actually sending a signal
+		process, err := os.FindProcess(int(status.PID))
+		if err != nil {
+			// Process doesn't exist, clean up stale state
+			s.SetFactoryStopped()
+			return false, nil
+		}
+
+		// Signal 0 checks if process exists (Unix only)
+		if process.Signal(syscall.Signal(0)) != nil {
+			// Process doesn't exist, clean up stale state
+			s.SetFactoryStopped()
+			return false, nil
+		}
+	}
+
+	return true, nil
 }

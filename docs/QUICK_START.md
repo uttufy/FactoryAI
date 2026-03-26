@@ -42,13 +42,34 @@ This creates:
 
 ### Step 2: Boot the Factory
 
-Start all services:
+The `factory boot` command is a **persistent service** that runs continuously. It will stay open until you shut it down.
+
+#### Option A: Run in Background (Recommended)
+
+```bash
+factory boot &
+sleep 2  # Wait for initialization
+```
+
+Then you can use other commands in the same terminal.
+
+#### Option B: Run in Foreground
 
 ```bash
 factory boot
 ```
 
-This initializes:
+The terminal will show logs. Press `Ctrl+C` to shutdown.
+
+#### Option C: Use tmux
+
+```bash
+tmux new-session -s factory
+factory boot
+# Detach with Ctrl+B then D
+```
+
+#### What Gets Initialized:
 - Event bus (Andon Board)
 - Station manager
 - Operator pool
@@ -376,7 +397,26 @@ Solution: Run `factory init`
 Error: factory not booted. Run 'factory boot' first
 ```
 
-Solution: Run `factory boot`
+Solution: Run `factory boot &` then wait a moment before running other commands.
+
+### Factory Booting or Crashed
+
+```
+Error: factory is booting or crashed. If crashed, run 'factory shutdown' then 'factory boot'
+```
+
+This happens when:
+1. Factory is still initializing - wait a moment and try again
+2. Factory crashed during boot - run `factory shutdown` to clean up, then `factory boot` again
+
+### Boot Command Doesn't Exit
+
+The `factory boot` command is designed to run continuously as a daemon. It will not exit on its own.
+
+Solutions:
+- Run in background: `factory boot &`
+- Run in foreground and press `Ctrl+C` when done
+- Use `factory shutdown` from another terminal to stop a background factory
 
 ### Station Not Found
 

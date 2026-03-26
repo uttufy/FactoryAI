@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/uttufy/FactoryAI/internal/assembly"
 	"github.com/uttufy/FactoryAI/internal/batch"
@@ -69,19 +70,70 @@ var (
 
 // Factory configuration
 var (
-	factoryDir = ".factory"
-	dbPath     = ".factory/factory.db"
+	factoryDir     = ".factory"
+	dbPath         = ".factory/factory.db"
+	bootStatusPath = ".factory/booted"
 )
 
 // requireBoot checks if the factory has been initialized and booted
+// Uses database-backed state to work across process boundaries
 func requireBoot() error {
+	// Initialize store if needed
 	if storeInstance == nil {
-		return fmt.Errorf("factory not initialized. Run 'factory init' first")
+		var err error
+		storeInstance, err = store.NewStore(dbPath)
+		if err != nil {
+			return fmt.Errorf("factory not initialized. Run 'factory init' first")
+		}
 	}
-	if directorInstance == nil {
+
+	// Check database for factory state
+	status, err := storeInstance.GetFactoryStatus()
+	if err != nil {
+		return fmt.Errorf("checking factory status: %w", err)
+	}
+
+	switch status.BootStatus {
+	case "running":
+		return nil
+	case "booting":
+		return fmt.Errorf("factory is booting. Wait a moment and try again")
+	case "shutting_down":
+		return fmt.Errorf("factory is shutting down. Wait and try again")
+	case "stopped":
+		// Check if there's a stale boot status file (legacy cleanup)
+		if _, err := os.Stat(bootStatusPath); err == nil {
+			os.Remove(bootStatusPath)
+		}
 		return fmt.Errorf("factory not booted. Run 'factory boot' first")
+	default:
+		return fmt.Errorf("unknown factory status: %s", status.BootStatus)
 	}
-	return nil
+}
+
+// getStore returns the store instance, initializing it if necessary
+func getStore() (*store.Store, error) {
+	if storeInstance == nil {
+		var err error
+		storeInstance, err = store.NewStore(dbPath)
+		if err != nil {
+			return nil, fmt.Errorf("factory not initialized. Run 'factory init' first")
+		}
+	}
+	return storeInstance, nil
+}
+
+// markFactoryBooted creates a status file to indicate boot is in progress/complete
+func markFactoryBooted() error {
+	if err := os.MkdirAll(factoryDir, 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(bootStatusPath, []byte("booted"), 0644)
+}
+
+// markFactoryShutdown removes the boot status file
+func markFactoryShutdown() error {
+	return os.Remove(bootStatusPath)
 }
 
 // printSuccess prints a success message with a checkmark
@@ -109,6 +161,14 @@ func (l *consoleEventLogger) LogEvent(event events.Event) error {
 
 // shutdownDirector gracefully shuts down the director
 func shutdownDirector() error {
+	// Clean up boot status file (legacy)
+	defer markFactoryShutdown()
+
+	// Update database state
+	if st, err := getStore(); err == nil {
+		st.SetFactoryStopped()
+	}
+
 	if directorInstance != nil {
 		return directorInstance.Stop()
 	}

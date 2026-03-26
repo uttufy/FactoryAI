@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/uttufy/FactoryAI/internal/assembly"
@@ -78,29 +79,46 @@ var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show factory status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := requireBoot(); err != nil {
-			return err
-		}
-
-		ctx := context.Background()
-		status, err := directorInstance.GetStatus(ctx)
+		// Get store instance
+		st, err := getStore()
 		if err != nil {
 			return err
 		}
 
-		fmt.Printf("Factory Status: %s\n", map[bool]string{true: "Running", false: "Stopped"}[status.Running])
-		fmt.Printf("Uptime: %s\n", status.Uptime)
-		fmt.Printf("Active Jobs: %d\n", status.ActiveJobs)
-		fmt.Printf("Pending Batches: %d\n", status.PendingBatches)
-		fmt.Printf("Last Activity: %s\n", status.LastActivity.Format("2006-01-02 15:04:05"))
-		fmt.Println("\nStations:")
-		for _, s := range status.Stations {
-			job := s.CurrentJob
-			if job == "" {
-				job = "idle"
-			}
-			fmt.Printf("  %s (%s): %s\n", s.Name, s.Status, job)
+		// Read status from database
+		status, err := st.GetFactoryStatus()
+		if err != nil {
+			return fmt.Errorf("failed to get factory status: %w", err)
 		}
+
+		// Display status
+		fmt.Printf("Factory Status: %s\n", status.BootStatus)
+		if status.PID > 0 {
+			fmt.Printf("PID: %d\n", status.PID)
+		}
+		if !status.StartedAt.IsZero() {
+			fmt.Printf("Uptime: %s\n", time.Since(status.StartedAt).Round(time.Second))
+		}
+
+		// If factory is running and we have director instance, show more details
+		if status.Running && directorInstance != nil {
+			ctx := context.Background()
+			directorStatus, err := directorInstance.GetStatus(ctx)
+			if err == nil {
+				fmt.Printf("Active Jobs: %d\n", directorStatus.ActiveJobs)
+				fmt.Printf("Pending Batches: %d\n", directorStatus.PendingBatches)
+				fmt.Printf("Last Activity: %s\n", directorStatus.LastActivity.Format("2006-01-02 15:04:05"))
+				fmt.Println("\nStations:")
+				for _, s := range directorStatus.Stations {
+					job := s.CurrentJob
+					if job == "" {
+						job = "idle"
+					}
+					fmt.Printf("  %s (%s): %s\n", s.Name, s.Status, job)
+				}
+			}
+		}
+
 		return nil
 	},
 }
@@ -108,7 +126,22 @@ var statusCmd = &cobra.Command{
 var bootCmd = &cobra.Command{
 	Use:   "boot",
 	Short: "Start all stations",
-	Long:  "Initialize and start the factory director, all stations, and support services.",
+	Long: `Initialize and start the factory director, all stations, and support services.
+
+This command runs as a persistent service. Use Ctrl+C to stop it, or run it
+in the background with 'factory boot &' and use 'factory shutdown' to stop.
+
+Examples:
+  # Run in foreground (Ctrl+C to stop)
+  factory boot
+
+  # Run in background (recommended)
+  factory boot &
+  sleep 2  # Wait for initialization
+  factory status
+
+  # Stop background factory
+  factory shutdown`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 
@@ -120,6 +153,26 @@ var bootCmd = &cobra.Command{
 			}
 		}
 
+		// Check if already running (via database state)
+		running, err := storeInstance.IsFactoryRunning()
+		if err != nil {
+			printInfo("Warning: could not check factory status: %v", err)
+		}
+		if running {
+			return fmt.Errorf("factory already running. Use 'factory shutdown' first")
+		}
+
+		// Mark boot in progress in database
+		pid := os.Getpid()
+		if err := storeInstance.SetFactoryBooting(pid); err != nil {
+			printInfo("Warning: could not set boot status: %v", err)
+		}
+
+		// Also mark legacy boot file for backwards compatibility
+		if err := markFactoryBooted(); err != nil {
+			printInfo("Warning: could not create boot status file: %v", err)
+		}
+
 		// Initialize event bus
 		eventsInstance = events.NewEventBus(1000, storeInstance)
 
@@ -127,6 +180,8 @@ var bootCmd = &cobra.Command{
 		if tmuxInstance == nil {
 			tmuxInstance, err = tmux.NewManager()
 			if err != nil {
+				storeInstance.SetFactoryStopped()
+				markFactoryShutdown()
 				return fmt.Errorf("failed to initialize tmux: %w", err)
 			}
 		}
@@ -135,6 +190,8 @@ var bootCmd = &cobra.Command{
 		if beadsClient == nil {
 			beadsClient, err = beads.NewClient("beads", projectPath)
 			if err != nil {
+				storeInstance.SetFactoryStopped()
+				markFactoryShutdown()
 				return fmt.Errorf("failed to initialize beads client: %w", err)
 			}
 		}
@@ -171,10 +228,18 @@ var bootCmd = &cobra.Command{
 		defer cancel()
 
 		if err := directorInstance.Start(ctx); err != nil {
+			storeInstance.SetFactoryStopped()
+			markFactoryShutdown()
 			return fmt.Errorf("failed to start director: %w", err)
 		}
 
+		// Mark as running in database
+		if err := storeInstance.SetFactoryRunning(pid); err != nil {
+			printInfo("Warning: failed to persist running state: %v", err)
+		}
+
 		printSuccess("Factory booted successfully")
+		printInfo("Running in foreground. Press Ctrl+C to shutdown.")
 
 		// Wait for shutdown signal
 		sigChan := make(chan os.Signal, 1)
@@ -189,11 +254,55 @@ var bootCmd = &cobra.Command{
 var shutdownCmd = &cobra.Command{
 	Use:   "shutdown",
 	Short: "Graceful shutdown",
+	Long: `Gracefully shutdown the factory.
+
+Works even if factory was started in background or crashed during boot.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := requireBoot(); err != nil {
+		// Get store instance
+		st, err := getStore()
+		if err != nil {
 			return err
 		}
-		return shutdownDirector()
+
+		// Get current factory status
+		status, err := st.GetFactoryStatus()
+		if err != nil {
+			return fmt.Errorf("failed to get factory status: %w", err)
+		}
+
+		// Clean up legacy boot status file
+		markFactoryShutdown()
+
+		// If factory is running in another process, send signal to that process
+		if status.Running && status.PID > 0 {
+			// Find the process and send SIGTERM
+			process, err := os.FindProcess(int(status.PID))
+			if err != nil {
+				printInfo("Could not find factory process (PID %d), cleaning up state", status.PID)
+				st.SetFactoryStopped()
+				return nil
+			}
+
+			// Send SIGTERM to gracefully shutdown
+			if err := process.Signal(syscall.SIGTERM); err != nil {
+				// Process doesn't exist, clean up stale state
+				printInfo("Factory process (PID %d) not running, cleaning up state", status.PID)
+				st.SetFactoryStopped()
+				return nil
+			}
+
+			printSuccess("Sent shutdown signal to factory (PID %d)", status.PID)
+			return nil
+		}
+
+		// Check if director is running in this process (foreground case)
+		if directorInstance != nil {
+			return shutdownDirector()
+		}
+
+		printInfo("Factory not running (cleaned up status file)")
+		st.SetFactoryStopped()
+		return nil
 	},
 }
 
